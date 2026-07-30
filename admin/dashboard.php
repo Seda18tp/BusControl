@@ -28,7 +28,7 @@ $pagosPendientes = $pagosStats['pendientes'] ?: 0;
 
 // 3. Conteo de Buses Activos (Sintaxis compatible con PostgreSQL)
 $stmtBuses = $pdo->query("SELECT COUNT(*) as total, 
-    SUM(CASE WHEN estado = 'en_ruta' OR ultimaActualizacion >= NOW() - INTERVAL '1 hour' THEN 1 ELSE 0 END) as activos 
+    SUM(CASE WHEN estado = 'en_ruta' OR \"ultimaActualizacion\" >= NOW() - INTERVAL '1 hour' THEN 1 ELSE 0 END) as activos 
     FROM buses");
 $busesData = $stmtBuses->fetch(PDO::FETCH_ASSOC);
 $busesActivos = $busesData['activos'] ?: 0;
