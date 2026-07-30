@@ -4,10 +4,10 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') { header("L
 
 require_once __DIR__ . '/../db/conexion.php';
 
-$stmtInc = $pdo->query("SELECT i.tipo, i.descripcion, i."fechaReporte", u.nombre as conductor 
+$stmtInc = $pdo->query('SELECT i.tipo, i.descripcion, i."fechaReporte", u.nombre as conductor 
                         FROM incidentes i 
                         JOIN usuarios u ON i."conductorId" = u.id 
-                        ORDER BY i."fechaReporte" DESC");
+                        ORDER BY i."fechaReporte" DESC');
 $incidentes = $stmtInc->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
