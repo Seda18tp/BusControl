@@ -1,6 +1,8 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') {
+
+// Verificar que el usuario tenga sesión activa y sea administrador
+if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] !== 'admin' && ($_SESSION['rolid'] ?? 0) != 1)) {
     header("Location: ../index.php");
     exit;
 }
@@ -19,15 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $passwordNueva = $_POST['password_nueva'] ?? '';
 
     if (!empty($nombre) && !empty($email)) {
+        // Consultar la contraseña actual guardada en la base de datos
+        $stmtUser = $pdo->prepare("SELECT password FROM usuarios WHERE id = ?");
+        $stmtUser->execute([$usuario_id]);
+        $userBD = $stmtUser->fetch(PDO::FETCH_ASSOC);
+
         // Verificar si desea cambiar la contraseña
         if (!empty($passwordNueva)) {
-            // Validar contraseña actual
-            $stmtUser = $pdo->prepare("SELECT password FROM usuarios WHERE id = ?");
-            $stmtUser->execute([$usuario_id]);
-            $userBD = $stmtUser->fetch();
-
-            if ($userBD && (password_verify($passwordActual, $userBD['password']) || $passwordActual === '123456')) {
+            if (empty($passwordActual)) {
+                $mensaje = "Debes ingresar tu contraseña actual para establecer una nueva.";
+                $tipoMensaje = "error";
+            } elseif ($userBD && (password_verify($passwordActual, $userBD['password']) || $passwordActual === $userBD['password'] || $passwordActual === '123456')) {
+                // Generar hash seguro para la nueva contraseña
                 $hashNueva = password_hash($passwordNueva, PASSWORD_BCRYPT);
+                
                 $stmtUpdate = $pdo->prepare("UPDATE usuarios SET nombre = ?, email = ?, password = ? WHERE id = ?");
                 $stmtUpdate->execute([$nombre, $email, $hashNueva, $usuario_id]);
                 
@@ -55,22 +62,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Obtener datos actuales del usuario
-$stmt = $pdo->prepare("SELECT nombre, email, codigoEstudiante FROM usuarios WHERE id = ?");
+// Obtener datos actuales del usuario (PostgreSQL Case-Safe)
+$stmt = $pdo->prepare('SELECT nombre, email, "codigoEstudiante" FROM usuarios WHERE id = ?');
 $stmt->execute([$usuario_id]);
-$usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+$usuario = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['nombre' => $_SESSION['nombre'] ?? 'Admin', 'email' => $_SESSION['email'] ?? ''];
 $iniciales = strtoupper(substr($usuario['nombre'], 0, 2));
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CONTROLBUS - Configuración de Perfil</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/estilos.css">
 </head>
-<body class="bg-slate-100 font-sans text-slate-800">
+<body class="bg-slate-100 font-sans text-slate-800 antialiased">
     <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
         <div class="flex items-center space-x-3">
             <div class="bg-blue-600 text-white p-2 rounded-xl flex items-center justify-center shadow-md">
@@ -80,8 +88,7 @@ $iniciales = strtoupper(substr($usuario['nombre'], 0, 2));
         </div>
     </header>
 
-
-    <div class="flex min-h-screen">
+    <div class="flex min-h-[calc(100vh-61px)]">
         <!-- Sidebar Izquierdo -->
         <aside class="w-20 bg-white border-r border-slate-200 flex flex-col justify-between items-center py-6">
             <nav class="flex flex-col space-y-5 w-full items-center">
@@ -103,7 +110,7 @@ $iniciales = strtoupper(substr($usuario['nombre'], 0, 2));
                     <h1 class="text-3xl font-black text-slate-900 tracking-tight">Configuración de Perfil</h1>
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">Actualiza tus datos personales y contraseña</p>
                 </div>
-                <a href="dashboard.php" class="text-xs font-bold text-slate-500 hover:text-blue-600 flex items-center space-x-1">
+                <a href="dashboard.php" class="text-xs font-bold text-slate-500 hover:text-blue-600 flex items-center space-x-1 transition">
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>Volver al Inicio</span>
                 </a>
