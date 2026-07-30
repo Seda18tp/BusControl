@@ -14,8 +14,8 @@ $iniciales = strtoupper(substr($nombreConductor, 0, 2));
 // Obtener la unidad (Bus) asignada a este conductor y su ruta
 $stmtBus = $pdo->prepare('SELECT b.id as "busId", b.placa, r.id as "rutaId", r.nombre as "nombreRuta" 
                          FROM buses b 
-                         JOIN rutas r ON b."rutaId" = r.id OR b.rutaid = r.id
-                         WHERE b."conductorId" = ? OR b.conductorid = ? LIMIT 1');
+                         JOIN rutas r ON b."rutaId" = r.id
+                         WHERE b."conductorId" = ? LIMIT 1');
 $stmtBus->execute([$conductorId, $conductorId]);
 $bus = $stmtBus->fetch(PDO::FETCH_ASSOC);
 
@@ -27,7 +27,7 @@ $nombreRuta = $bus['nombreRuta'] ?? $bus['nombreruta'] ?? 'Ruta A (AM)';
 // Obtener paradas ordenadas de la ruta
 $stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada" as "horaEstimada", latitud, longitud 
                              FROM paradas 
-                             WHERE "rutaId" = ? OR rutaid = ? 
+                             WHERE "rutaId" = ?
                              ORDER BY orden ASC');
 $stmtParadas->execute([$rutaId, $rutaId]);
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
