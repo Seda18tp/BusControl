@@ -14,15 +14,15 @@ $nombre_usuario = $_SESSION['nombre'] ?? 'Estudiante';
 $iniciales = strtoupper(substr($nombre_usuario, 0, 2));
 
 // Estado de Pago (Soporte Case-Safe para PostgreSQL)
-$stmtPago = $pdo->prepare('SELECT estado, "validoHasta" as "validoHasta" FROM pagos WHERE "usuarioId" = ? OR usuarioid = ? ORDER BY id DESC LIMIT 1');
-$stmtPago->execute([$usuario_id, $usuario_id]);
+$stmtPago = $pdo->prepare('SELECT estado, "validoHasta" as "validoHasta" FROM pagos WHERE "usuarioId" = ? ORDER BY id DESC LIMIT 1');
+$stmtPago->execute([$usuario_id]);
 $pago = $stmtPago->fetch(PDO::FETCH_ASSOC);
 
 $estadoPago = $pago['estado'] ?? 'vencido';
 $validoHasta = $pago['validoHasta'] ?? $pago['validohasta'] ?? null;
 
 // Cargar paradas activas con latitud y longitud
-$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada" as "horaEstimada", latitud, longitud FROM paradas WHERE "rutaId" = 1 OR rutaid = 1 ORDER BY orden ASC');
+$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada" as "horaEstimada", latitud, longitud FROM paradas WHERE "rutaId" = 1 ORDER BY orden ASC');
 $stmtParadas->execute();
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 
