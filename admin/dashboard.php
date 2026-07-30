@@ -320,6 +320,13 @@ function actualizarUbicacionVivo() {
 // Bucle de consulta en tiempo real cada 3 segundos
 setInterval(actualizarUbicacionVivo, 3000);
 actualizarUbicacionVivo();
+
+function togglePerfilMenu() {
+    const menu = document.getElementById('dropdown-perfil') || document.getElementById('dropdown-perfil-admin');
+    if (menu) {
+        menu.classList.toggle('hidden');
+    }
+}
     </script>
 </body>
 </html>
