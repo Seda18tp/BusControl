@@ -16,7 +16,7 @@ $stmtBus = $pdo->prepare('SELECT b.id as "busId", b.placa, r.id as "rutaId", r.n
                          FROM buses b 
                          JOIN rutas r ON b."rutaId" = r.id
                          WHERE b."conductorId" = ?  LIMIT 1');
-$stmtBus->execute([$conductorId, $conductorId]);
+$stmtBus->execute([$conductorId]);
 $bus = $stmtBus->fetch(PDO::FETCH_ASSOC);
 
 $busId = $bus['busId'] ?? $bus['busid'] ?? 1;
@@ -29,7 +29,7 @@ $stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada", latitud,
                              FROM paradas 
                              WHERE "rutaId" = ? 
                              ORDER BY orden ASC');
-$stmtParadas->execute([$rutaId, $rutaId]);
+$stmtParadas->execute([$rutaId]);
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
