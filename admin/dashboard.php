@@ -13,8 +13,8 @@ $adminId = $_SESSION['usuario_id'];
 $nombreAdmin = $_SESSION['nombre'] ?? 'Admin';
 $iniciales = strtoupper(substr($nombreAdmin, 0, 2));
 
-// 1. Conteo Total de Estudiantes (rolid = 3 o "rolId")
-$stmtTotalEst = $pdo->query('SELECT COUNT(*) FROM usuarios WHERE \"rolId\" = 3 OR rolid = 3');
+// 1. Conteo Total de Estudiantes
+$stmtTotalEst = $pdo->query('SELECT COUNT(*) FROM usuarios WHERE "rolId" = 3 OR rolid = 3');
 $totalEstudiantes = $stmtTotalEst->fetchColumn() ?: 0;
 
 // 2. Conteo de Pagos (Al día vs Pendientes)
@@ -26,34 +26,34 @@ $pagosStats = $stmtPagosStats->fetch(PDO::FETCH_ASSOC);
 $pagosPagados = $pagosStats['pagados'] ?: 0;
 $pagosPendientes = $pagosStats['pendientes'] ?: 0;
 
-// 3. Conteo de Buses Activos (PostgreSQL Case-Safe)
+// 3. Conteo de Buses Activos
 $stmtBuses = $pdo->query('SELECT COUNT(*) as total, 
-    SUM(CASE WHEN estado = \'en_ruta\' OR \"ultimaActualizacion\" >= NOW() - INTERVAL \'1 hour\' THEN 1 ELSE 0 END) as activos 
+    SUM(CASE WHEN estado = \'en_ruta\' OR "ultimaActualizacion" >= NOW() - INTERVAL \'1 hour\' THEN 1 ELSE 0 END) as activos 
     FROM buses');
 $busesData = $stmtBuses->fetch(PDO::FETCH_ASSOC);
 $busesActivos = $busesData['activos'] ?: 0;
 $busesTotal = $busesData['total'] ?: 0;
 
-// 4. Estadísticas de abordaje por Ruta (Manejo seguro con comillas dobles)
+// 4. Estadísticas de abordaje por Ruta
 $rutasStats = [];
 try {
-    $stmtRutasStats = $pdo->query('SELECT r.nombre as rutaNombre, COUNT(a.id) as totalAbordajes 
+    $stmtRutasStats = $pdo->query('SELECT r.nombre as "rutaNombre", COUNT(a.id) as "totalAbordajes" 
                                     FROM rutas r 
-                                    LEFT JOIN viajes v ON v.\"rutaId\" = r.id 
-                                    LEFT JOIN asistencias a ON a.\"viajeId\" = v.id AND DATE(a.\"fechaAbordaje\") = CURRENT_DATE 
+                                    LEFT JOIN viajes v ON v."rutaId" = r.id 
+                                    LEFT JOIN asistencias a ON a."viajeId" = v.id AND DATE(a."fechaAbordaje") = CURRENT_DATE 
                                     GROUP BY r.id, r.nombre');
     $rutasStats = $stmtRutasStats->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // Respaldo por si la tabla viajes/asistencias no existe o cambia
-    $stmtRutasSimple = $pdo->query('SELECT nombre as rutaNombre, 0 as totalAbordajes FROM rutas');
+    // Respaldo seguro por si las tablas dependientes no existen
+    $stmtRutasSimple = $pdo->query('SELECT nombre as "rutaNombre", 0 as "totalAbordajes" FROM rutas');
     $rutasStats = $stmtRutasSimple->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// 5. Historial Reciente de Pagos (PostgreSQL Case-Safe)
-$stmtHistorialPagos = $pdo->query('SELECT p.id, u.nombre as estudiante, u.\"codigoEstudiante\", p.monto, p.\"fechaPago\", p.estado 
+// 5. Historial Reciente de Pagos
+$stmtHistorialPagos = $pdo->query('SELECT p.id, u.nombre as estudiante, u."codigoEstudiante", p.monto, p."fechaPago", p.estado 
                                     FROM pagos p 
-                                    JOIN usuarios u ON p.\"usuarioId\" = u.id 
-                                    ORDER BY p.\"fechaPago\" DESC LIMIT 5');
+                                    JOIN usuarios u ON p."usuarioId" = u.id 
+                                    ORDER BY p."fechaPago" DESC LIMIT 5');
 $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
