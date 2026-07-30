@@ -90,7 +90,7 @@ $rutas = $stmtRutas->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($rutas as $ruta): ?>
                     <?php
                     // Obtener paradas ordenadas de cada ruta
-                    $stmtParadas = $pdo->prepare("SELECT nombre, orden, horaEstimada, latitud, longitud FROM paradas WHERE rutaId = ? ORDER BY orden ASC");
+                    $stmtParadas = $pdo->prepare('SELECT nombre, orden, "horaEstimada", latitud, longitud FROM paradas WHERE "rutaId" = ? ORDER BY orden ASC');
                     $stmtParadas->execute([$ruta['rutaId']]);
                     $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                     ?>
