@@ -164,7 +164,7 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
 
                 <!-- Card 3: Flota Activa -->
                 <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Flota en Servicio</p>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Bus en Servicio</p>
                     <div class="flex items-baseline justify-between">
                         <h2 class="text-3xl font-black text-slate-900"><?php echo $busesActivos; ?> <span class="text-lg font-bold text-slate-400">/ <?php echo $busesTotal; ?></span></h2>
                         <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full"><i class="fa-solid fa-bus mr-1"></i> En ruta</span>
@@ -183,7 +183,7 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
                 <!-- Mapa de Monitoreo -->
                 <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                        <h3 class="font-extrabold text-slate-800 text-lg">Estado de Flota en Vivo</h3>
+                        <h3 class="font-extrabold text-slate-800 text-lg">Estado del bus en Vivo</h3>
                         <span class="text-xs bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full">Monitoreo GPS</span>
                     </div>
                     <div id="mapa" class="h-80 w-full rounded-2xl"></div>
@@ -275,7 +275,7 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
 
         const busIcon = L.divIcon({
             className: 'custom-admin-bus-icon',
-            html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
                     <i class="fa-solid fa-bus text-sm"></i>
                    </div>`,
             iconSize: [38, 38],
@@ -294,9 +294,15 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
             fetch('../api/ubicacion.php')
                 .then(res => res.json())
                 .then(data => {
-                    if (data.latitud && data.longitud) {
-                        const lat = parseFloat(data.latitud);
-                        const lng = parseFloat(data.longitud);
+                    console.log("Respuesta GPS Admin:", data);
+
+                    // Sostener compatibilidad con lat/longitud o latitud/longitud
+                    const rawLat = data.latitud ?? data.lat ?? (Array.isArray(data) && data[0] ? (data[0].latitud ?? data[0].lat) : null);
+                    const rawLng = data.longitud ?? data.lng ?? (Array.isArray(data) && data[0] ? (data[0].longitud ?? data[0].lng) : null);
+
+                    if (rawLat !== null && rawLng !== null) {
+                        const lat = parseFloat(rawLat);
+                        const lng = parseFloat(rawLng);
                         const pos = [lat, lng];
 
                         if (!busMarker) {
