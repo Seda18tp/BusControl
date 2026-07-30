@@ -1,7 +1,8 @@
 <?php
 session_start();
 if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') { header("Location: ../index.php"); exit; }
-require_once '../db/conexion.php';
+
+require_once __DIR__ . '/../db/conexion.php';
 
 $conductorId = $_SESSION['usuario_id'];
 $stmt = $pdo->prepare("SELECT tipo, descripcion, fechaReporte FROM incidentes WHERE conductorId = ? ORDER BY fechaReporte DESC");

@@ -1,7 +1,8 @@
 <?php
 session_start();
 if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') { header("Location: ../index.php"); exit; }
-require_once '../db/conexion.php';
+
+require_once __DIR__ . '/../db/conexion.php';
 
 $stmtInc = $pdo->query("SELECT i.tipo, i.descripcion, i.fechaReporte, u.nombre as conductor 
                         FROM incidentes i 

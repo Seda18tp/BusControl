@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') { header("Location: ../index.php"); exit; }
-require_once '../db/conexion.php';
+require_once __DIR__ . '/../db/conexion.php';
 
 $usuario_id = $_SESSION['usuario_id'];
 $stmt = $pdo->prepare("SELECT * FROM pagos WHERE usuarioId = ? ORDER BY fechaPago DESC");

@@ -1,7 +1,8 @@
 <?php
 session_start();
 if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') { header("Location: ../index.php"); exit; }
-require_once '../db/conexion.php';
+
+require_once __DIR__ . '/../db/conexion.php';
 
 $rutas = $pdo->query("SELECT r.nombre, r.horarioTurno, p.nombre as parada, p.horaEstimada 
                       FROM rutas r 

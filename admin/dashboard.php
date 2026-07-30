@@ -5,7 +5,7 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'admin') {
     exit;
 }
 
-require_once '../db/conexion.php';
+require_once __DIR__ . '/../db/conexion.php';
 
 $adminId = $_SESSION['usuario_id'];
 $nombreAdmin = $_SESSION['nombre'];
