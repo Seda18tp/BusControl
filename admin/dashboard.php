@@ -37,16 +37,16 @@ $busesTotal = $busesData['total'] ?: 0;
 // 4. Estadísticas de abordaje por Ruta (Usando CURRENT_DATE para PostgreSQL)
 $stmtRutasStats = $pdo->query("SELECT r.nombre as rutaNombre, COUNT(a.id) as totalAbordajes 
                                 FROM rutas r 
-                                LEFT JOIN viajes v ON v.rutaid = r.id 
-                                LEFT JOIN asistencias a ON a.viajeid = v.id AND DATE(a.fechaAbordaje) = CURRENT_DATE 
+                                LEFT JOIN viajes v ON v.rutaId = r.id 
+                                LEFT JOIN asistencias a ON a.viajeId = v.id AND DATE(a.fechaAbordaje) = CURRENT_DATE 
                                 GROUP BY r.id, r.nombre");
 $rutasStats = $stmtRutasStats->fetchAll(PDO::FETCH_ASSOC);
 
 // 5. Historial Reciente de Pagos
-$stmtHistorialPagos = $pdo->query("SELECT p.id, u.nombre as estudiante, u.codigoestudiante, p.monto, p.fechapago, p.estado 
+$stmtHistorialPagos = $pdo->query("SELECT p.id, u.nombre as estudiante, u.codigoEstudiante, p.monto, p.fechaPago, p.estado 
                                     FROM pagos p 
-                                    JOIN usuarios u ON p.usuarioid = u.id 
-                                    ORDER BY p.fechapago DESC LIMIT 5");
+                                    JOIN usuarios u ON p.usuarioId = u.id 
+                                    ORDER BY p.fechaPago DESC LIMIT 5");
 $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
