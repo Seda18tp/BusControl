@@ -74,9 +74,6 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
                 <a href="notificaciones.php" title="Notificaciones" class="w-12 h-12 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center text-xl transition relative">
                     <i class="fa-solid fa-bell"></i>
                 </a>
-                <a href="calendario.php" title="Calendario" class="w-12 h-12 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center text-xl transition">
-                    <i class="fa-solid fa-calendar-days"></i>
-                </a>
                 <a href="rutas.php" title="Rutas Disponibles" class="w-12 h-12 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center text-xl transition">
                     <i class="fa-solid fa-compass"></i>
                 </a>

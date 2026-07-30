@@ -7,7 +7,7 @@ require_once __DIR__ . '/../db/conexion.php';
 $stmt = $pdo->query('SELECT i.descripcion, i.tipo, i."fechaReporte", u.nombre as conductor 
                      FROM incidentes i 
                      JOIN usuarios u ON i."conductorId" = u.id 
-                     ORDER BY i.fechaReporte DESC LIMIT 10');
+                     ORDER BY i."fechaReporte" DESC LIMIT 10');
 $alertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -35,7 +35,6 @@ $alertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <a href="notificaciones.php" class="bg-blue-50 text-blue-600 p-3 rounded-2xl text-xl"><i class="fa-solid fa-bell"></i></a>
             <a href="calendario.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-calendar-days"></i></a>
             <a href="rutas.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-compass"></i></a>
-            <a href="configuracion.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-gear"></i></a>
         </aside>
 
         <main class="flex-1 p-8 max-w-4xl mx-auto space-y-6">

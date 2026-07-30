@@ -49,9 +49,6 @@ $rutas = $stmtRutas->fetchAll(PDO::FETCH_ASSOC);
                 <a href="notificaciones.php" title="Notificaciones" class="w-12 h-12 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-blue-600 flex items-center justify-center text-xl transition">
                     <i class="fa-solid fa-bell"></i>
                 </a>
-                <a href="calendario.php" title="Calendario" class="w-12 h-12 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-blue-600 flex items-center justify-center text-xl transition">
-                    <i class="fa-solid fa-calendar-days"></i>
-                </a>
                 <a href="rutas.php" title="Rutas Disponibles" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm">
                     <i class="fa-solid fa-compass"></i>
                 </a>
