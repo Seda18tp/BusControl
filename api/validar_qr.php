@@ -9,7 +9,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 // Incluir conexión a la base de datos
 if (file_exists('../db/conexion.php')) {
-    require_once '../db/conexion.php';
+require_once __DIR__ . '/../db/conexion.php';
 } else {
     ob_end_clean();
     echo json_encode(['status' => 'error', 'message' => 'No se encuentra db/conexion.php']);
@@ -34,10 +34,10 @@ if (empty($tokenEscaneado)) {
 
 try {
     // 1. Buscar el token en la tabla tokens_qr
-    $stmt = $pdo->prepare("SELECT t.id, t.estudianteId, t.usado, t.expiraEn, u.nombre 
+    $stmt = $pdo->prepare('SELECT t.id, t."estudianteId", t.usado, t."expiraEn", u.nombre 
                            FROM tokens_qr t 
-                           JOIN usuarios u ON t.estudianteId = u.id 
-                           WHERE t.token = ?");
+                           JOIN usuarios u ON t."estudianteId" = u.id 
+                           WHERE t.token = ?');
     $stmt->execute([$tokenEscaneado]);
     $tokenData = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -62,17 +62,17 @@ try {
     }
 
     // 4. PASO CLAVE: Quemar/Inactivar el token en la BD (usado = 1)
-    $stmtUsado = $pdo->prepare("UPDATE tokens_qr SET usado = 1 WHERE id = ?");
+    $stmtUsado = $pdo->prepare('UPDATE tokens_qr SET usado = 1 WHERE id = ?');
     $stmtUsado->execute([$tokenData['id']]);
 
     // 5. Garantizar un registro activo en la tabla 'viajes' para evitar conflicto de Llave Foránea (FK)
-    $stmtViaje = $pdo->prepare("SELECT id FROM viajes WHERE conductorId = ? AND estado = 'activo' ORDER BY id DESC LIMIT 1");
+    $stmtViaje = $pdo->prepare('SELECT id FROM viajes WHERE "conductorId" = ? AND estado = 'activo' ORDER BY id DESC LIMIT 1');
     $stmtViaje->execute([$conductorId]);
     $viaje = $stmtViaje->fetch(PDO::FETCH_ASSOC);
 
     if (!$viaje) {
         // Crear un viaje inicial si no existe
-        $stmtNuevoViaje = $pdo->prepare("INSERT INTO viajes (busId, rutaId, conductorId, estado) VALUES (1, 1, ?, 'activo')");
+        $stmtNuevoViaje = $pdo->prepare('INSERT INTO viajes ("busId", "rutaId", "conductorId", estado) VALUES (1, 1, ?, 'activo')');
         $stmtNuevoViaje->execute([$conductorId]);
         $viajeId = $pdo->lastInsertId();
     } else {
@@ -80,7 +80,7 @@ try {
     }
 
     // 6. Registrar la asistencia/abordaje en la BD
-    $stmtAsistencia = $pdo->prepare("INSERT INTO asistencias (estudianteId, viajeId, fechaAbordaje) VALUES (?, ?, NOW())");
+    $stmtAsistencia = $pdo->prepare('INSERT INTO asistencias ("estudianteId", "viajeId", "fechaAbordaje") VALUES (?, ?, NOW())');
     $stmtAsistencia->execute([$tokenData['estudianteId'], $viajeId]);
 
     // Limpiar cualquier HTML accidental y enviar JSON limpio

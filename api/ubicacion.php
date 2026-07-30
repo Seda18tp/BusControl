@@ -6,7 +6,7 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 
 if (file_exists('../db/conexion.php')) {
-    require_once '../db/conexion.php';
+require_once __DIR__ . '/../db/conexion.php';
 } else {
     ob_end_clean();
     echo json_encode(['status' => 'error', 'message' => 'Sin conexión a BD']);
@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($lat !== null && $lng !== null) {
         // Actualizar coordenadas y cambiar el estado a 'en_ruta'
-        $stmt = $pdo->prepare("UPDATE buses SET latitud = ?, longitud = ?, estado = 'en_ruta', ultimaActualizacion = NOW() WHERE id = ?");
+        $stmt = $pdo->prepare('UPDATE buses SET latitud = ?, longitud = ?, estado = 'en_ruta', "ultimaActualizacion" = NOW() WHERE id = ?');
         $stmt->execute([$lat, $lng, $busId]);
 
         ob_end_clean();
@@ -36,10 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // 2. CONSULTAR UBICACIÓN (Petición GET de Estudiante y Administrador)
-$stmt = $pdo->prepare("SELECT b.id, b.placa, b.latitud, b.longitud, b.estado, b.ultimaActualizacion, r.nombre as rutaNombre 
+$stmt = $pdo->prepare('SELECT b.id, b.placa, b.latitud, b.longitud, b.estado, b."ultimaActualizacion", r.nombre as "rutaNombre"
                        FROM buses b 
-                       LEFT JOIN rutas r ON b.rutaId = r.id 
-                       WHERE b.id = 1");
+                       LEFT JOIN rutas r ON b."rutaId" = r.id 
+                       WHERE b.id = 1');
 $stmt->execute();
 $bus = $stmt->fetch(PDO::FETCH_ASSOC);
 

@@ -7,7 +7,7 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 if (file_exists('../db/conexion.php')) {
-    require_once '../db/conexion.php';
+require_once __DIR__ . '/../db/conexion.php';
 } else {
     ob_end_clean();
     echo json_encode(['status' => 'error', 'message' => 'Sin conexión a BD']);
@@ -24,7 +24,7 @@ $estudianteId = $_SESSION['usuario_id'];
 
 try {
     // 1. Verificar estado de pago del estudiante
-    $stmtPago = $pdo->prepare("SELECT estado, validoHasta FROM pagos WHERE usuarioId = ? ORDER BY id DESC LIMIT 1");
+    $stmtPago = $pdo->prepare('SELECT estado, "validoHasta" FROM pagos WHERE "usuarioId" = ? ORDER BY id DESC LIMIT 1');
     $stmtPago->execute([$estudianteId]);
     $pago = $stmtPago->fetch(PDO::FETCH_ASSOC);
 
@@ -38,12 +38,12 @@ try {
     }
 
     // 2. Verificar si ya tiene un token VÁLIDO Y NO USADO generado hoy
-    $stmtActivo = $pdo->prepare("SELECT token, expiraEn FROM tokens_qr 
-                                 WHERE estudianteId = ? 
-                                 AND DATE(creadoEn) = CURDATE() 
+    $stmtActivo = $pdo->prepare('SELECT token, "expiraEn" FROM tokens_qr 
+                                 WHERE "estudianteId" = ? 
+                                 AND DATE("creadoEn") = CURDATE() 
                                  AND usado = 0 
-                                 AND expiraEn > NOW() 
-                                 ORDER BY id DESC LIMIT 1");
+                                 AND "expiraEn" > NOW() 
+                                 ORDER BY id DESC LIMIT 1');
     $stmtActivo->execute([$estudianteId]);
     $tokenActivo = $stmtActivo->fetch(PDO::FETCH_ASSOC);
 
@@ -61,9 +61,9 @@ try {
     }
 
     // 3. Contar cuántos tokens HA USADO O GENERADO hoy el estudiante
-    $stmtConteo = $pdo->prepare("SELECT COUNT(*) as totalHoy FROM tokens_qr 
-                                 WHERE estudianteId = ? 
-                                 AND DATE(creadoEn) = CURDATE()");
+    $stmtConteo = $pdo->prepare('SELECT COUNT(*) as "totalHoy" FROM tokens_qr 
+                                 WHERE "estudianteId" = ? 
+                                 AND DATE("creadoEn") = CURDATE()');
     $stmtConteo->execute([$estudianteId]);
     $conteo = $stmtConteo->fetch(PDO::FETCH_ASSOC);
     $totalHoy = intval($conteo['totalHoy'] ?? 0);
@@ -82,7 +82,7 @@ try {
     $tokenAleatorio = bin2hex(random_bytes(16));
     $expiraEn = date('Y-m-d H:i:s', strtotime('+15 minutes')); // Válido por 15 min para abordar
 
-    $stmtInsert = $pdo->prepare("INSERT INTO tokens_qr (estudianteId, token, expiraEn, usado) VALUES (?, ?, ?, 0)");
+    $stmtInsert = $pdo->prepare('INSERT INTO tokens_qr ("estudianteId", token, "expiraEn", usado) VALUES (?, ?, ?, 0)');
     $stmtInsert->execute([$estudianteId, $tokenAleatorio, $expiraEn]);
 
     $urlQR = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" . $tokenAleatorio;

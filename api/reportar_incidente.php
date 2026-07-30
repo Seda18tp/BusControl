@@ -3,7 +3,7 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 if (file_exists('../db/conexion.php')) {
-    require_once '../db/conexion.php';
+require_once __DIR__ . '/../db/conexion.php';
 } else {
     echo json_encode(['status' => 'error', 'message' => 'Sin conexion BD']);
     exit;
@@ -24,13 +24,13 @@ if (empty($desc)) {
 }
 
 // Buscar o crear un viaje activo para asociar el incidente
-$stmtViaje = $pdo->prepare("SELECT id FROM viajes WHERE conductorId = ? AND estado = 'activo' ORDER BY id DESC LIMIT 1");
+$stmtViaje = $pdo->prepare('SELECT id FROM viajes WHERE "conductorId" = ? AND estado = 'activo' ORDER BY id DESC LIMIT 1');
 $stmtViaje->execute([$conductorId]);
 $viaje = $stmtViaje->fetch(PDO::FETCH_ASSOC);
 
 if (!$viaje) {
     // Si no hay viaje abierto, insertar uno activo por defecto
-    $stmtNuevoViaje = $pdo->prepare("INSERT INTO viajes (busId, rutaId, conductorId, estado) VALUES (1, 1, ?, 'activo')");
+    $stmtNuevoViaje = $pdo->prepare('INSERT INTO viajes ("busId", "rutaId", "conductorId", estado) VALUES (1, 1, ?, 'activo')');
     $stmtNuevoViaje->execute([$conductorId]);
     $viajeId = $pdo->lastInsertId();
 } else {
@@ -38,7 +38,7 @@ if (!$viaje) {
 }
 
 // Insertar en la tabla incidentes
-$stmtInsert = $pdo->prepare("INSERT INTO incidentes (viajeId, conductorId, descripcion, tipo, fechaReporte) VALUES (?, ?, ?, ?, NOW())");
+$stmtInsert = $pdo->prepare('INSERT INTO incidentes ("viajeId", "conductorId", descripcion, tipo, "fechaReporte") VALUES (?, ?, ?, ?, NOW())');
 $stmtInsert->execute([$viajeId, $conductorId, $desc, $tipo]);
 
 echo json_encode([
