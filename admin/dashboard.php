@@ -2,7 +2,7 @@
 session_start();
 
 // Verificar que el usuario tenga sesión activa y sea administrador
-if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] !== 'admin' && $_SESSION['rolid'] != 1)) {
+if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] !== 'admin' && ($_SESSION['rolid'] ?? 0) != 1)) {
     header("Location: ../index.php");
     exit;
 }
@@ -10,11 +10,11 @@ if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] !== 'admin' && $_SESSIO
 require_once __DIR__ . '/../db/conexion.php';
 
 $adminId = $_SESSION['usuario_id'];
-$nombreAdmin = $_SESSION['nombre'];
+$nombreAdmin = $_SESSION['nombre'] ?? 'Admin';
 $iniciales = strtoupper(substr($nombreAdmin, 0, 2));
 
-// 1. Conteo Total de Estudiantes (rolid = 3)
-$stmtTotalEst = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rolid = 3");
+// 1. Conteo Total de Estudiantes (rolid = 3 o "rolId")
+$stmtTotalEst = $pdo->query('SELECT COUNT(*) FROM usuarios WHERE "rolId" = 3 OR rolid = 3');
 $totalEstudiantes = $stmtTotalEst->fetchColumn() ?: 0;
 
 // 2. Conteo de Pagos (Al día vs Pendientes)
@@ -26,27 +26,34 @@ $pagosStats = $stmtPagosStats->fetch(PDO::FETCH_ASSOC);
 $pagosPagados = $pagosStats['pagados'] ?: 0;
 $pagosPendientes = $pagosStats['pendientes'] ?: 0;
 
-// 3. Conteo de Buses Activos (Sintaxis compatible con PostgreSQL)
-$stmtBuses = $pdo->query("SELECT COUNT(*) as total, 
-    SUM(CASE WHEN estado = 'en_ruta' OR \"ultimaActualizacion\" >= NOW() - INTERVAL '1 hour' THEN 1 ELSE 0 END) as activos 
-    FROM buses");
+// 3. Conteo de Buses Activos (PostgreSQL Case-Safe)
+$stmtBuses = $pdo->query('SELECT COUNT(*) as total, 
+    SUM(CASE WHEN estado = \'en_ruta\' OR "ultimaActualizacion" >= NOW() - INTERVAL \'1 hour\' THEN 1 ELSE 0 END) as activos 
+    FROM buses');
 $busesData = $stmtBuses->fetch(PDO::FETCH_ASSOC);
 $busesActivos = $busesData['activos'] ?: 0;
 $busesTotal = $busesData['total'] ?: 0;
 
-// 4. Estadísticas de abordaje por Ruta (Usando CURRENT_DATE para PostgreSQL)
-$stmtRutasStats = $pdo->query("SELECT r.nombre as rutaNombre, COUNT(a.id) as totalAbordajes 
-                                FROM rutas r 
-                                LEFT JOIN viajes v ON v.rutaId = r.id 
-                                LEFT JOIN asistencias a ON a.viajeId = v.id AND DATE(a.fechaAbordaje) = CURRENT_DATE 
-                                GROUP BY r.id, r.nombre");
-$rutasStats = $stmtRutasStats->fetchAll(PDO::FETCH_ASSOC);
+// 4. Estadísticas de abordaje por Ruta (Manejo seguro con comillas dobles)
+$rutasStats = [];
+try {
+    $stmtRutasStats = $pdo->query('SELECT r.nombre as "rutaNombre", COUNT(a.id) as "totalAbordajes" 
+                                    FROM rutas r 
+                                    LEFT JOIN viajes v ON v."rutaId" = r.id 
+                                    LEFT JOIN asistencias a ON a."viajeId" = v.id AND DATE(a."fechaAbordaje") = CURRENT_DATE 
+                                    GROUP BY r.id, r.nombre');
+    $rutasStats = $stmtRutasStats->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // Respaldo por si la tabla viajes/asistencias no existe o cambia
+    $stmtRutasSimple = $pdo->query('SELECT nombre as "rutaNombre", 0 as "totalAbordajes" FROM rutas');
+    $rutasStats = $stmtRutasSimple->fetchAll(PDO::FETCH_ASSOC);
+}
 
-// 5. Historial Reciente de Pagos
-$stmtHistorialPagos = $pdo->query("SELECT p.id, u.nombre as estudiante, u.codigoEstudiante, p.monto, p.fechaPago, p.estado 
+// 5. Historial Reciente de Pagos (PostgreSQL Case-Safe)
+$stmtHistorialPagos = $pdo->query('SELECT p.id, u.nombre as estudiante, u."codigoEstudiante", p.monto, p."fechaPago", p.estado 
                                     FROM pagos p 
-                                    JOIN usuarios u ON p.usuarioId = u.id 
-                                    ORDER BY p.fechaPago DESC LIMIT 5");
+                                    JOIN usuarios u ON p."usuarioId" = u.id 
+                                    ORDER BY p."fechaPago" DESC LIMIT 5');
 $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -191,10 +198,14 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
                                 <p class="text-xs text-slate-400 font-medium">No hay registros de abordajes hoy.</p>
                             <?php else: ?>
                                 <?php foreach ($rutasStats as $rs): ?>
+                                    <?php 
+                                        $rutaNombre = $rs['rutaNombre'] ?? $rs['rutanombre'] ?? 'Ruta Sin Nombre';
+                                        $totalAbordajes = $rs['totalAbordajes'] ?? $rs['totalabordajes'] ?? 0;
+                                    ?>
                                     <div class="p-3 bg-slate-50 border border-slate-100 rounded-2xl space-y-1">
                                         <div class="flex justify-between items-center">
-                                            <span class="text-xs font-black text-slate-800"><?php echo htmlspecialchars($rs['rutaNombre']); ?></span>
-                                            <span class="text-xs font-bold bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full"><?php echo number_format($rs['totalAbordajes']); ?> pasajeros</span>
+                                            <span class="text-xs font-black text-slate-800"><?php echo htmlspecialchars($rutaNombre); ?></span>
+                                            <span class="text-xs font-bold bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full"><?php echo number_format($totalAbordajes); ?> pasajeros</span>
                                         </div>
                                         <p class="text-[10px] text-slate-400 font-medium">Asistencias confirmadas el día de hoy</p>
                                     </div>
@@ -229,11 +240,15 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs font-semibold">
                             <?php foreach ($historialPagos as $pago): ?>
+                                <?php 
+                                    $codigoEst = $pago['codigoEstudiante'] ?? $pago['codigoestudiante'] ?? 'N/A';
+                                    $fechaPago = $pago['fechaPago'] ?? $pago['fechapago'] ?? null;
+                                ?>
                                 <tr class="hover:bg-slate-50/50 transition">
                                     <td class="py-3.5 px-4 font-extrabold text-slate-800"><?php echo htmlspecialchars($pago['estudiante']); ?></td>
-                                    <td class="py-3.5 px-4 text-slate-500"><?php echo htmlspecialchars($pago['codigoestudiante'] ?? $pago['codigoEstudiante'] ?? 'N/A'); ?></td>
+                                    <td class="py-3.5 px-4 text-slate-500"><?php echo htmlspecialchars($codigoEst ?: 'N/A'); ?></td>
                                     <td class="py-3.5 px-4 font-bold text-slate-800">$<?php echo number_format($pago['monto'], 2); ?></td>
-                                    <td class="py-3.5 px-4 text-slate-500"><?php echo date('d/m/Y H:i', strtotime($pago['fechapago'] ?? $pago['fechaPago'])); ?></td>
+                                    <td class="py-3.5 px-4 text-slate-500"><?php echo $fechaPago ? date('d/m/Y H:i', strtotime($fechaPago)) : 'N/A'; ?></td>
                                     <td class="py-3.5 px-4 text-right">
                                         <?php if ($pago['estado'] === 'al_dia'): ?>
                                             <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-bold text-[10px]">PAGADO / AL DÍA</span>
@@ -248,7 +263,7 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </div>
 
-        </main>
+        </main> 
     </div>
 
     <!-- Scripts Leaflet -->
