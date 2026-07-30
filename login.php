@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db/conexion.php';
+require_once __DIR__ . '/db/conexion.php';
 
 $error = '';
 
@@ -9,29 +9,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     if (!empty($email) && !empty($password)) {
-        // Consulta uniendo la tabla usuarios con la tabla roles
-        $stmt = $pdo->prepare("SELECT u.id, u.nombre, u.email, u.password, r.nombre as rol 
+        // Consulta con "rolId" entre comillas dobles para PostgreSQL
+        $stmt = $pdo->prepare('SELECT u.id, u.nombre, u.email, u.password, r.nombre as rol 
                                FROM usuarios u 
-                               JOIN roles r ON u.rolId = r.id 
-                               WHERE u.email = ?");
+                               JOIN roles r ON u."rolId" = r.id 
+                               WHERE u.email = ?');
         $stmt->execute([$email]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Para pruebas aceptamos la contraseña hash o en texto plano de prueba '123456'
-        if ($usuario && (password_verify($password, $usuario['password']) || $password === '123456')) {
+        // Aceptamos la contraseña hash o en texto plano de prueba
+        if ($usuario && (password_verify($password, $usuario['password']) || $password === '123456' || $password === $usuario['password'])) {
             $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['nombre'] = $usuario['nombre'];
             $_SESSION['email'] = $usuario['email'];
             $_SESSION['rol'] = strtolower($usuario['rol']);
 
             // Redirección según rol
-            if ($_SESSION['rol'] === 'administrador' || $_SESSION['rol'] === 'admin') {
+            $rol = strtolower($usuario['rol']);
+            if ($rol === 'administrador' || $rol === 'admin') {
                 header("Location: admin/dashboard.php");
                 exit;
-            } elseif ($_SESSION['rol'] === 'conductor') {
+            } elseif ($rol === 'conductor') {
                 header("Location: conductor/dashboard.php");
                 exit;
-            } elseif ($_SESSION['rol'] === 'estudiante') {
+            } elseif ($rol === 'estudiante') {
                 header("Location: estudiante/dashboard.php");
                 exit;
             }
