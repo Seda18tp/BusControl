@@ -269,63 +269,57 @@ $historialPagos = $stmtHistorialPagos->fetchAll(PDO::FETCH_ASSOC);
     <!-- Scripts Leaflet -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map = null;
-        let busMarker = null;
-        let primeraCargaAdmin = true;
+let map = null;
+let busMarker = null;
+let primeraCarga = true;
 
-        const busIcon = L.divIcon({
-            className: 'custom-admin-bus-icon',
-            html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                    <i class="fa-solid fa-bus text-sm"></i>
-                   </div>`,
-            iconSize: [38, 38],
-            iconAnchor: [19, 19]
-        });
+const busIcon = L.divIcon({
+    className: 'custom-bus-icon',
+    html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <i class="fa-solid fa-bus text-sm"></i>
+           </div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19]
+});
 
-        function initMap() {
-            map = L.map('mapa', { zoomControl: false }).setView([4.6097, -74.0817], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-        }
+function initMap() {
+    map = L.map('mapa', { zoomControl: false }).setView([4.6097, -74.0817], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
 
-        initMap();
+initMap();
 
-        function actualizarGPSGlobal() {
-            fetch('../api/ubicacion.php')
-                .then(res => res.json())
-                .then(data => {
-                    console.log("Respuesta GPS Admin:", data);
+function actualizarUbicacionVivo() {
+    fetch('../api/ubicacion.php')
+        .then(res => res.json())
+        .then(data => {
+            const rawLat = data.lat ?? data.latitud;
+            const rawLng = data.lng ?? data.longitud;
 
-                    // Sostener compatibilidad con lat/longitud o latitud/longitud
-                    const rawLat = data.latitud ?? data.lat ?? (Array.isArray(data) && data[0] ? (data[0].latitud ?? data[0].lat) : null);
-                    const rawLng = data.longitud ?? data.lng ?? (Array.isArray(data) && data[0] ? (data[0].longitud ?? data[0].lng) : null);
+            if (rawLat !== null && rawLng !== null && rawLat !== undefined && rawLng !== undefined) {
+                const lat = parseFloat(rawLat);
+                const lng = parseFloat(rawLng);
+                const pos = [lat, lng];
 
-                    if (rawLat !== null && rawLng !== null) {
-                        const lat = parseFloat(rawLat);
-                        const lng = parseFloat(rawLng);
-                        const pos = [lat, lng];
+                if (!busMarker) {
+                    busMarker = L.marker(pos, { icon: busIcon }).addTo(map);
+                } else {
+                    busMarker.setLatLng(pos);
+                }
 
-                        if (!busMarker) {
-                            busMarker = L.marker(pos, { icon: busIcon }).addTo(map);
-                        } else {
-                            busMarker.setLatLng(pos);
-                        }
+                if (primeraCarga) {
+                    map.setView(pos, 16);
+                    primeraCarga = false;
+                }
+            }
+        })
+        .catch(err => console.error("Error consultando GPS:", err));
+}
 
-                        if (primeraCargaAdmin || data.estado === 'en_ruta') {
-                            map.setView(pos, 16);
-                            primeraCargaAdmin = false;
-                        }
-                    }
-                })
-                .catch(err => console.error("Error consultando GPS Admin:", err));
-        }
-
-        function toggleMenuAdmin() {
-            document.getElementById('dropdown-perfil-admin').classList.toggle('hidden');
-        }
-
-        setInterval(actualizarGPSGlobal, 3000);
-        actualizarGPSGlobal();
+// Bucle de consulta en tiempo real cada 3 segundos
+setInterval(actualizarUbicacionVivo, 3000);
+actualizarUbicacionVivo();
     </script>
 </body>
 </html>

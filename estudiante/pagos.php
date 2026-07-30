@@ -33,7 +33,6 @@ $pagos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <a href="dashboard.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-house"></i></a>
             <a href="pagos.php" class="bg-blue-50 text-blue-600 p-3 rounded-2xl text-xl"><i class="fa-solid fa-credit-card"></i></a>
             <a href="notificaciones.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-bell"></i></a>
-            <a href="calendario.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-calendar-days"></i></a>
             <a href="rutas.php" class="text-slate-400 hover:text-blue-600 text-xl"><i class="fa-solid fa-compass"></i></a>
         </aside>
 

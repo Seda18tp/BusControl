@@ -194,21 +194,56 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let map = null;
-        let busMarker = null;
-        let primeraCarga = true;
-        let anteriorLatEstudiante = null;
-        let anteriorLngEstudiante = null;
+let busMarker = null;
+let primeraCarga = true;
 
-        const paradasBD = <?php echo json_encode($paradas); ?>;
+const busIcon = L.divIcon({
+    className: 'custom-bus-icon',
+    html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <i class="fa-solid fa-bus text-sm"></i>
+           </div>`,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19]
+});
 
-        const busIcon = L.divIcon({
-            className: 'custom-bus-icon',
-            html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">
-                    <i class="fa-solid fa-bus text-sm"></i>
-                   </div>`,
-            iconSize: [38, 38],
-            iconAnchor: [19, 19]
-        });
+function initMap() {
+    map = L.map('mapa', { zoomControl: false }).setView([4.6097, -74.0817], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
+
+initMap();
+
+function actualizarUbicacionVivo() {
+    fetch('../api/ubicacion.php')
+        .then(res => res.json())
+        .then(data => {
+            const rawLat = data.lat ?? data.latitud;
+            const rawLng = data.lng ?? data.longitud;
+
+            if (rawLat !== null && rawLng !== null && rawLat !== undefined && rawLng !== undefined) {
+                const lat = parseFloat(rawLat);
+                const lng = parseFloat(rawLng);
+                const pos = [lat, lng];
+
+                if (!busMarker) {
+                    busMarker = L.marker(pos, { icon: busIcon }).addTo(map);
+                } else {
+                    busMarker.setLatLng(pos);
+                }
+
+                if (primeraCarga) {
+                    map.setView(pos, 16);
+                    primeraCarga = false;
+                }
+            }
+        })
+        .catch(err => console.error("Error consultando GPS:", err));
+}
+
+// Bucle de consulta en tiempo real cada 3 segundos
+setInterval(actualizarUbicacionVivo, 3000);
+actualizarUbicacionVivo();
 
         function obtenerQRDinamico() {
             fetch('../api/generar_qr.php')
@@ -247,66 +282,6 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
         window.addEventListener('DOMContentLoaded', () => {
             obtenerQRDinamico();
         });
-
-        function initMap() {
-            map = L.map('mapa', { zoomControl: false }).setView([4.6097, -74.0817], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-        }
-
-        initMap();
-
-        function actualizarUbicacion() {
-            fetch('../api/ubicacion.php')
-                .then(res => res.json())
-                .then(data => {
-                    const rawLat = data.latitud ?? data.lat;
-                    const rawLng = data.longitud ?? data.lng;
-
-                    if (rawLat !== null && rawLng !== null && rawLat !== undefined && rawLng !== undefined) {
-                        const lat = parseFloat(rawLat);
-                        const lng = parseFloat(rawLng);
-                        const pos = [lat, lng];
-
-                        if (data.placa) {
-                            const elPlaca = document.getElementById('placa-bus');
-                            if (elPlaca) elPlaca.innerText = data.placa;
-                        }
-
-                        if (!busMarker) {
-                            busMarker = L.marker(pos, { icon: busIcon }).addTo(map);
-                        } else {
-                            busMarker.setLatLng(pos);
-                        }
-
-                        if (primeraCarga || data.estado === 'en_ruta') {
-                            map.setView(pos, 16);
-                            primeraCarga = false;
-                        }
-
-                        const estaEnParada = verificarLlegadaEstudiante(lat, lng);
-
-                        if (!estaEnParada) {
-                            let estaEnMovimiento = false;
-
-                            if (data.estado === 'en_ruta') {
-                                estaEnMovimiento = true;
-                            } else if (anteriorLatEstudiante !== null && anteriorLngEstudiante !== null) {
-                                const distAvance = calcularDistanciaMetros(anteriorLatEstudiante, anteriorLngEstudiante, lat, lng);
-                                if (distAvance > 5) {
-                                    estaEnMovimiento = true;
-                                }
-                            }
-
-                            actualizarBadgeEstado(estaEnMovimiento, data.placa || 'BUS-001');
-                        }
-
-                        anteriorLatEstudiante = lat;
-                        anteriorLngEstudiante = lng;
-                    }
-                })
-                .catch(err => console.error("Error GPS Estudiante:", err));
-        }
 
         function verificarLlegadaEstudiante(busLat, busLng) {
             if (!paradasBD || !Array.isArray(paradasBD) || paradasBD.length === 0) return false;

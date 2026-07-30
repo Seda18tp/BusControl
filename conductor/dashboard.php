@@ -318,17 +318,17 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         });
 
         function enviarUbicacionBD(lat, lng, velocidad) {
-            const formData = new FormData();
-            formData.append('bus_id', busId);
-            formData.append('lat', lat);
-            formData.append('lng', lng);
-            formData.append('velocidad', velocidad.toFixed(2));
+    const formData = new FormData();
+    formData.append('bus_id', busId);
+    formData.append('lat', lat);
+    formData.append('lng', lng);
+    formData.append('velocidad', velocidad.toFixed(2));
 
-            fetch('../api/ubicacion.php', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => console.log("GPS actualizado:", data))
-            .catch(err => console.error("Error conectando con API GPS:", err));
-        }
+    fetch('../api/ubicacion.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => console.log("GPS transmitido:", data))
+        .catch(err => console.error("Error al transmitir GPS:", err));
+}
 
         function verificarProximidadParadas(busLat, busLng) {
             if (!paradasBD || !Array.isArray(paradasBD)) return;
