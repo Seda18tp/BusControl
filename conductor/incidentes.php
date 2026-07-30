@@ -5,7 +5,7 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') { heade
 require_once __DIR__ . '/../db/conexion.php';
 
 $conductorId = $_SESSION['usuario_id'];
-$stmt = $pdo->prepare("SELECT tipo, descripcion, fechaReporte FROM incidentes WHERE conductorId = ? ORDER BY fechaReporte DESC");
+$stmt = $pdo->prepare('SELECT tipo, descripcion, "fechaReporte" FROM incidentes WHERE "conductorId" = ? ORDER BY "fechaReporte" DESC');
 $stmt->execute([$conductorId]);
 $incidentes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>

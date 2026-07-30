@@ -7,11 +7,11 @@ require_once __DIR__ . '/../db/conexion.php';
 $conductorId = $_SESSION['usuario_id'];
 $iniciales = strtoupper(substr($_SESSION['nombre'], 0, 2));
 
-$stmt = $pdo->prepare("SELECT p.nombre, p.orden, p.horaEstimada, r.nombre as nombreRuta 
+$stmt = $pdo->prepare('SELECT p.nombre, p.orden, p."horaEstimada", r.nombre as "nombreRuta" 
                        FROM buses b 
-                       JOIN paradas p ON b.rutaId = p.rutaId 
-                       JOIN rutas r ON b.rutaId = r.id 
-                       WHERE b.conductorId = ? ORDER BY p.orden ASC");
+                       JOIN paradas p ON b."rutaId" = p."rutaId" 
+                       JOIN rutas r ON b."rutaId" = r.id 
+                       WHERE b."conductorId" = ? ORDER BY p.orden ASC');
 $stmt->execute([$conductorId]);
 $paradas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
