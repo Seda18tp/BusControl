@@ -14,7 +14,7 @@ $nombreAdmin = $_SESSION['nombre'] ?? 'Admin';
 $iniciales = strtoupper(substr($nombreAdmin, 0, 2));
 
 // 1. Conteo Total de Estudiantes
-$stmtTotalEst = $pdo->query('SELECT COUNT(*) FROM usuarios WHERE "rolId" = 3 OR rolid = 3');
+$stmtTotalEst = $pdo->query('SELECT COUNT(*) FROM usuarios WHERE "rolId" = 3');
 $totalEstudiantes = $stmtTotalEst->fetchColumn() ?: 0;
 
 // 2. Conteo de Pagos (Al día vs Pendientes)
