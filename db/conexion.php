@@ -1,10 +1,10 @@
 <?php
 // db/conexion.php
 
-$host = getenv('DB_HOST') ?: 'aws-0-sa-east-1.pooler.supabase.com';
+$host = getenv('DB_HOST') ?: 'db.lflehtsodbfnzxgfhrla.supabase.co';
 $port = getenv('DB_PORT') ?: '5432';
 $db   = getenv('DB_NAME') ?: 'postgres';
-$user = getenv('DB_USER') ?: 'postgres.xxxx';
+$user = getenv('DB_USER') ?: 'postgres';
 $pass = getenv('DB_PASS') ?: 'cxAP#z87Nz$knbS';
 
 try {
