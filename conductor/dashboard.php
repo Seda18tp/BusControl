@@ -11,11 +11,11 @@ $conductorId = $_SESSION['usuario_id'];
 $nombreConductor = $_SESSION['nombre'] ?? 'Conductor';
 $iniciales = strtoupper(substr($nombreConductor, 0, 2));
 
-// Obtener la unidad (Bus) asignada a este conductor y su ruta
+// Obtener la unidad (Bus) asignada a este conductor y su ruta (Un solo parámetro)
 $stmtBus = $pdo->prepare('SELECT b.id as "busId", b.placa, r.id as "rutaId", r.nombre as "nombreRuta" 
                          FROM buses b 
-                         JOIN rutas r ON b."rutaId" = r.id
-                         WHERE b."conductorId" = ? LIMIT 1');
+                         JOIN rutas r ON b."rutaId" = r.id OR b.rutaid = r.id
+                         WHERE b."conductorId" = ? OR b.conductorid = ? LIMIT 1');
 $stmtBus->execute([$conductorId, $conductorId]);
 $bus = $stmtBus->fetch(PDO::FETCH_ASSOC);
 
@@ -24,9 +24,10 @@ $placa = $bus['placa'] ?? 'BUS-001';
 $rutaId = $bus['rutaId'] ?? $bus['rutaid'] ?? 1;
 $nombreRuta = $bus['nombreRuta'] ?? $bus['nombreruta'] ?? 'Ruta A (AM)';
 
+// Obtener paradas ordenadas de la ruta (Un solo parámetro)
 $stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada", latitud, longitud 
                              FROM paradas 
-                             WHERE "rutaId" = ? 
+                             WHERE "rutaId" = ? OR rutaid = ? 
                              ORDER BY orden ASC');
 $stmtParadas->execute([$rutaId, $rutaId]);
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
@@ -425,7 +426,6 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         function abrirModalIncidente() { document.getElementById('modal-incidente').classList.remove('hidden'); }
         function cerrarModalIncidente() { document.getElementById('modal-incidente').classList.add('hidden'); }
 
-        // FUNCION CORREGIDA PARA ENVIAR EL INCIDENTE CON TODOS LOS PARÁMETROS
         function guardarIncidente(e) {
             e.preventDefault();
             
