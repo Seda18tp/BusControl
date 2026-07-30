@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] !== 'conductor' && ($_SESSION['rolid'] ?? 0) != 2)) {
+if (!isset($_SESSION['usuario_id']) || (strtolower($_SESSION['rol'] ?? '') !== 'conductor' && ($_SESSION['rolid'] ?? $_SESSION['rolId'] ?? 0) != 2)) {
     header("Location: ../index.php");
     exit;
 }
@@ -11,12 +11,12 @@ $conductorId = $_SESSION['usuario_id'];
 $nombreConductor = $_SESSION['nombre'] ?? 'Conductor';
 $iniciales = strtoupper(substr($nombreConductor, 0, 2));
 
-// Obtener la unidad (Bus) asignada a este conductor y su ruta (Un solo parámetro)
+// Obtener la unidad (Bus) asignada a este conductor y su ruta
 $stmtBus = $pdo->prepare('SELECT b.id as "busId", b.placa, r.id as "rutaId", r.nombre as "nombreRuta" 
                          FROM buses b 
-                         JOIN rutas r ON b."rutaId" = r.id
-                         WHERE b."conductorId" = ?  LIMIT 1');
-$stmtBus->execute([$conductorId]);
+                         JOIN rutas r ON b."rutaId" = r.id OR b.rutaid = r.id
+                         WHERE b."conductorId" = ? OR b.conductorid = ? LIMIT 1');
+$stmtBus->execute([$conductorId, $conductorId]);
 $bus = $stmtBus->fetch(PDO::FETCH_ASSOC);
 
 $busId = $bus['busId'] ?? $bus['busid'] ?? 1;
@@ -24,12 +24,12 @@ $placa = $bus['placa'] ?? 'BUS-001';
 $rutaId = $bus['rutaId'] ?? $bus['rutaid'] ?? 1;
 $nombreRuta = $bus['nombreRuta'] ?? $bus['nombreruta'] ?? 'Ruta A (AM)';
 
-// Obtener paradas ordenadas de la ruta (Un solo parámetro)
-$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada", latitud, longitud 
+// Obtener paradas ordenadas de la ruta
+$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada" as "horaEstimada", latitud, longitud 
                              FROM paradas 
-                             WHERE "rutaId" = ? 
+                             WHERE "rutaId" = ? OR rutaid = ? 
                              ORDER BY orden ASC');
-$stmtParadas->execute([$rutaId]);
+$stmtParadas->execute([$rutaId, $rutaId]);
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -40,12 +40,8 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
     <title>BUSCONTROL - Panel del Conductor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="../css/estilos.css">
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        #mapa { height: 340px; width: 100%; border-radius: 1rem; z-index: 1; }
-    </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 antialiased">
 
@@ -104,56 +100,60 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         <main class="flex-1 p-8 max-w-6xl mx-auto space-y-6">
             
             <!-- Encabezado de Ruta y Vehículo -->
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-                <div class="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <div>
-                        <p class="text-xs font-bold text-slate-400 uppercase">Ruta Actual</p>
-                        <h2 class="text-xl font-black text-slate-900"><?php echo htmlspecialchars($nombreRuta); ?></h2>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xs font-bold text-slate-400 uppercase">Vehículo Asignado</p>
-                        <h2 class="text-xl font-black text-slate-900"><?php echo htmlspecialchars($placa); ?></h2>
-                    </div>
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase">Ruta Actual</p>
+                    <h2 class="text-2xl font-black text-slate-900"><?php echo htmlspecialchars($nombreRuta); ?></h2>
                 </div>
-
-                <div class="relative">
-                    <div id="mapa"></div>
-
-                    <!-- Panel Flotante de Paradas -->
-                    <div class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-lg border border-slate-100 z-[1000] w-72 max-h-72 overflow-y-auto space-y-3">
-                        <h4 class="text-xs font-black text-slate-400 uppercase border-b pb-1">Progreso del Recorrido</h4>
-                        
-                        <div id="lista-paradas" class="space-y-2">
-                            <?php foreach ($paradas as $index => $parada): ?>
-                                <?php 
-                                    $horaEst = $parada['horaEstimada'] ?? $parada['horaestimada'] ?? null;
-                                ?>
-                                <div id="parada-card-<?php echo $parada['id']; ?>" class="flex items-start space-x-3 p-2 rounded-xl bg-slate-50 border border-slate-100 transition-all">
-                                    <div id="parada-icon-<?php echo $parada['id']; ?>" class="w-5 h-5 rounded-full bg-slate-300 text-white flex items-center justify-center text-[10px] shrink-0 mt-0.5 font-black">
-                                        <?php echo $parada['orden']; ?>
-                                    </div>
-                                    <div>
-                                        <p class="text-xs font-black text-slate-800 uppercase"><?php echo htmlspecialchars($parada['nombre']); ?></p>
-                                        <p id="parada-status-<?php echo $parada['id']; ?>" class="text-[10px] font-bold text-slate-400">
-                                            Est.: <?php echo $horaEst ? date('h:i A', strtotime($horaEst)) : 'N/A'; ?>
-                                        </p>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
+                <div class="text-right">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Vehículo Asignado</p>
+                    <h2 class="text-2xl font-black text-slate-900"><?php echo htmlspecialchars($placa); ?></h2>
                 </div>
             </div>
 
-            <!-- Fila Inferior -->
+            <!-- Progreso del Recorrido (Lista Ampliada sin mapa) -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="text-lg font-black text-slate-900 uppercase">Progreso del Recorrido</h3>
+                    <span class="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-full">
+                        <?php echo count($paradas); ?> Paradas programadas
+                    </span>
+                </div>
+
+                <div id="lista-paradas" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+                    <?php if (empty($paradas)): ?>
+                        <p class="text-xs text-slate-400 font-bold p-4 text-center col-span-2">No hay paradas registradas en esta ruta.</p>
+                    <?php else: ?>
+                        <?php foreach ($paradas as $index => $parada): ?>
+                            <?php 
+                                $horaEst = $parada['horaEstimada'] ?? $parada['horaestimada'] ?? null;
+                            ?>
+                            <div id="parada-card-<?php echo $parada['id']; ?>" class="flex items-center space-x-4 p-3 rounded-2xl bg-slate-50 border border-slate-100 transition-all">
+                                <div id="parada-icon-<?php echo $parada['id']; ?>" class="w-8 h-8 rounded-full bg-slate-300 text-white flex items-center justify-center text-xs shrink-0 font-black">
+                                    <?php echo $parada['orden']; ?>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-black text-slate-800 uppercase truncate"><?php echo htmlspecialchars($parada['nombre']); ?></p>
+                                    <p id="parada-status-<?php echo $parada['id']; ?>" class="text-[11px] font-bold text-slate-400">
+                                        Est.: <?php echo $horaEst ? date('h:i A', strtotime($horaEst)) : 'N/A'; ?>
+                                    </p>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Fila Inferior: Escáner y Acciones -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                <!-- Escanear Pasajero -->
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4 flex flex-col justify-between">
                     <h3 class="text-lg font-black text-slate-900">Escanear Pasajero</h3>
                     
-                    <div id="reader-container" class="bg-slate-50 border-2 border-dashed border-blue-400 rounded-2xl p-4 text-center min-h-[200px] flex flex-col items-center justify-center">
+                    <div id="reader-container" class="bg-slate-50 border-2 border-dashed border-blue-400 rounded-2xl p-4 text-center min-h-[220px] flex flex-col items-center justify-center">
                         <div id="qr-reader" class="w-full max-w-xs mx-auto"></div>
-                        <button id="btn-iniciar-camara" onclick="iniciarCamaraQR()" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs shadow transition mt-2">
+                        <button id="btn-iniciar-camara" onclick="iniciarCamaraQR()" class="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-5 py-3 rounded-xl text-xs shadow-md transition my-auto">
                             <i class="fa-solid fa-camera mr-2"></i> Activar Cámara Lector
                         </button>
                     </div>
@@ -161,23 +161,26 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                     <div id="resultado-qr" class="hidden p-3 rounded-xl text-xs font-bold text-center"></div>
                 </div>
 
+                <!-- Estado Transmisión GPS y Reportar Incidente -->
                 <div class="space-y-4 flex flex-col justify-between">
-                    <button onclick="abrirModalIncidente()" class="w-full bg-white hover:bg-red-50 text-red-600 font-extrabold py-4 px-6 rounded-3xl border border-red-200 shadow-sm flex items-center justify-center space-x-3 transition">
-                        <span class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center text-sm">
+                    
+                    <button onclick="abrirModalIncidente()" class="w-full bg-white hover:bg-red-50 text-red-600 font-extrabold py-5 px-6 rounded-3xl border border-red-200 shadow-sm flex items-center justify-center space-x-3 transition">
+                        <span class="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center text-base">
                             <i class="fa-solid fa-triangle-exclamation"></i>
                         </span>
-                        <span>Reportar Incidente / Retraso</span>
+                        <span class="text-sm">Reportar Incidente / Retraso</span>
                     </button>
 
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center space-y-3">
-                        <div class="w-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-black py-4 px-6 rounded-2xl shadow-sm flex items-center justify-center space-x-3">
-                            <span class="relative flex h-3 w-3">
+                        <div class="w-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-black py-5 px-6 rounded-2xl shadow-sm flex items-center justify-center space-x-3">
+                            <span class="relative flex h-3.5 w-3.5">
                               <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
                             </span>
-                            <span class="text-sm">TRANSMITIENDO GPS EN VIVO</span>
+                            <span class="text-sm uppercase tracking-wider">Transmitiendo GPS en Vivo</span>
                         </div>
                     </div>
+
                 </div>
 
             </div>
@@ -212,10 +215,7 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map = null;
-        let busMarker = null;
         let watchId = null;
         let wakeLock = null;
         let html5QrCode = null;
@@ -228,23 +228,6 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         let ultimaLat = null;
         let ultimaLng = null;
         let ultimoTiempo = null;
-
-        const busIcon = L.divIcon({
-            className: 'custom-driver-icon',
-            html: `<div style="background-color: #2563eb; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                    <i class="fa-solid fa-bus text-sm"></i>
-                   </div>`,
-            iconSize: [38, 38],
-            iconAnchor: [19, 19]
-        });
-
-        function initMap() {
-            map = L.map('mapa', { zoomControl: false }).setView([4.6097, -74.0817], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-        }
-
-        initMap();
 
         async function solicitarWakeLock() {
             try {
@@ -279,33 +262,8 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         function procesarNuevaUbicacion(pos) {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            const ahora = Date.now();
-            let velocidadKmH = 0;
 
-            if (pos.coords.speed !== null && pos.coords.speed > 0) {
-                velocidadKmH = pos.coords.speed * 3.6;
-            } else if (ultimaLat !== null && ultimaLng !== null && ultimoTiempo !== null) {
-                const distMetros = calcularDistanciaMetros(ultimaLat, ultimaLng, lat, lng);
-                const tiempoSegundos = (ahora - ultimoTiempo) / 1000;
-                if (tiempoSegundos > 0) {
-                    velocidadKmH = (distMetros / tiempoSegundos) * 3.6;
-                }
-            }
-
-            ultimaLat = lat;
-            ultimaLng = lng;
-            ultimoTiempo = ahora;
-
-            const posArray = [lat, lng];
-
-            if (!busMarker) {
-                busMarker = L.marker(posArray, { icon: busIcon }).addTo(map);
-            } else {
-                busMarker.setLatLng(posArray);
-            }
-            map.setView(posArray, 16);
-
-            enviarUbicacionBD(lat, lng, velocidadKmH);
+            enviarUbicacionBD(lat, lng);
             verificarProximidadParadas(lat, lng);
         }
 
@@ -317,18 +275,17 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
             }
         });
 
-        function enviarUbicacionBD(lat, lng, velocidad) {
-    const formData = new FormData();
-    formData.append('bus_id', busId);
-    formData.append('lat', lat);
-    formData.append('lng', lng);
-    formData.append('velocidad', velocidad.toFixed(2));
+        function enviarUbicacionBD(lat, lng) {
+            const formData = new FormData();
+            formData.append('bus_id', busId);
+            formData.append('lat', lat);
+            formData.append('lng', lng);
 
-    fetch('../api/ubicacion.php', { method: 'POST', body: formData })
-        .then(res => res.json())
-        .then(data => console.log("GPS transmitido:", data))
-        .catch(err => console.error("Error al transmitir GPS:", err));
-}
+            fetch('../api/ubicacion.php', { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(data => console.log("GPS transmitido:", data))
+                .catch(err => console.error("Error al transmitir GPS:", err));
+        }
 
         function verificarProximidadParadas(busLat, busLng) {
             if (!paradasBD || !Array.isArray(paradasBD)) return;
@@ -349,12 +306,13 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                         const status = document.getElementById(`parada-status-${parada.id}`);
 
                         if (card) {
-                            card.className = "flex items-start space-x-3 p-2 rounded-xl bg-emerald-50 border border-emerald-200 transition-all shadow-sm";
-                            icon.className = "w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] shrink-0 mt-0.5 font-black";
-                            icon.innerHTML = '<i class="fa-solid fa-check"></i>';
-                            
+                            card.className = "flex items-center space-x-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 transition-all shadow-sm";
+                            if (icon) {
+                                icon.className = "w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shrink-0 font-black";
+                                icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+                            }
                             if (status) {
-                                status.className = "text-[10px] font-bold text-emerald-600";
+                                status.className = "text-[11px] font-bold text-emerald-600";
                                 status.innerText = "✓ Confirmada / Llegó";
                             }
                         }
