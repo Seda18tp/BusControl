@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
+if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] !== 'conductor' && ($_SESSION['rolid'] ?? 0) != 2)) {
     header("Location: ../index.php");
     exit;
 }
@@ -8,24 +8,27 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
 require_once __DIR__ . '/../db/conexion.php';
 
 $conductorId = $_SESSION['usuario_id'];
-$nombreConductor = $_SESSION['nombre'];
+$nombreConductor = $_SESSION['nombre'] ?? 'Conductor';
 $iniciales = strtoupper(substr($nombreConductor, 0, 2));
 
 // Obtener la unidad (Bus) asignada a este conductor y su ruta
 $stmtBus = $pdo->prepare('SELECT b.id as "busId", b.placa, r.id as "rutaId", r.nombre as "nombreRuta" 
                          FROM buses b 
-                         JOIN rutas r ON b."rutaId" = r.id 
-                         WHERE b."conductorId" = ? LIMIT 1');
-$stmtBus->execute([$conductorId]);
+                         JOIN rutas r ON b."rutaId" = r.id OR b.rutaid = r.id
+                         WHERE b."conductorId" = ? OR b.conductorid = ? LIMIT 1');
+$stmtBus->execute([$conductorId, $conductorId]);
 $bus = $stmtBus->fetch(PDO::FETCH_ASSOC);
 
-$busId = $bus['busId'] ?? 1;
+$busId = $bus['busId'] ?? $bus['busid'] ?? 1;
 $placa = $bus['placa'] ?? 'BUS-001';
-$rutaId = $bus['rutaId'] ?? 1;
-$nombreRuta = $bus['nombreRuta'] ?? 'Ruta A (AM)';
+$rutaId = $bus['rutaId'] ?? $bus['rutaid'] ?? 1;
+$nombreRuta = $bus['nombreRuta'] ?? $bus['nombreruta'] ?? 'Ruta A (AM)';
 
-$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada", latitud, longitud FROM paradas WHERE "rutaId" = ? ORDER BY orden ASC');
-$stmtParadas->execute([$rutaId]);
+$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada", latitud, longitud 
+                             FROM paradas 
+                             WHERE "rutaId" = ? OR rutaid = ? 
+                             ORDER BY orden ASC');
+$stmtParadas->execute([$rutaId, $rutaId]);
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -115,12 +118,15 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                 <div class="relative">
                     <div id="mapa"></div>
 
-                    <!-- Panel Flotante de Paradas Dinámicas -->
+                    <!-- Panel Flotante de Paradas -->
                     <div class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-lg border border-slate-100 z-[1000] w-72 max-h-72 overflow-y-auto space-y-3">
                         <h4 class="text-xs font-black text-slate-400 uppercase border-b pb-1">Progreso del Recorrido</h4>
                         
                         <div id="lista-paradas" class="space-y-2">
                             <?php foreach ($paradas as $index => $parada): ?>
+                                <?php 
+                                    $horaEst = $parada['horaEstimada'] ?? $parada['horaestimada'] ?? null;
+                                ?>
                                 <div id="parada-card-<?php echo $parada['id']; ?>" class="flex items-start space-x-3 p-2 rounded-xl bg-slate-50 border border-slate-100 transition-all">
                                     <div id="parada-icon-<?php echo $parada['id']; ?>" class="w-5 h-5 rounded-full bg-slate-300 text-white flex items-center justify-center text-[10px] shrink-0 mt-0.5 font-black">
                                         <?php echo $parada['orden']; ?>
@@ -128,7 +134,7 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                                     <div>
                                         <p class="text-xs font-black text-slate-800 uppercase"><?php echo htmlspecialchars($parada['nombre']); ?></p>
                                         <p id="parada-status-<?php echo $parada['id']; ?>" class="text-[10px] font-bold text-slate-400">
-                                            Est.: <?php echo date('h:i A', strtotime($parada['horaEstimada'])); ?>
+                                            Est.: <?php echo $horaEst ? date('h:i A', strtotime($horaEst)) : 'N/A'; ?>
                                         </p>
                                     </div>
                                 </div>
@@ -138,7 +144,7 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </div>
 
-            <!-- Fila Inferior: Escáner QR de Pasajeros y Acciones -->
+            <!-- Fila Inferior -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4">
@@ -162,7 +168,6 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                         <span>Reportar Incidente / Retraso</span>
                     </button>
 
-                    <!-- Indicador de Transmisión Automática Fija -->
                     <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center space-y-3">
                         <div class="w-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-black py-4 px-6 rounded-2xl shadow-sm flex items-center justify-center space-x-3">
                             <span class="relative flex h-3 w-3">
@@ -186,20 +191,21 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
             <form id="form-incidente" onsubmit="guardarIncidente(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Incidente</label>
-                    <select id="tipo-incidente" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-semibold">
-                        <option value="mecanico">Falla Mecánica</option>
-                        <option value="trafico">Congestión / Tráfico Alto</option>
-                        <option value="emergencia">Emergencia</option>
-                        <option value="otro">Otro</option>
+                    <select id="tipo-incidente" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500">
+                        <option value="Falla Mecánica">Falla Mecánica</option>
+                        <option value="Tráfico Alto">Congestión / Tráfico Alto</option>
+                        <option value="Emergencia">Emergencia</option>
+                        <option value="Accidente">Accidente / Bloqueo</option>
+                        <option value="Otro">Otro</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Descripción corta</label>
-                    <textarea id="desc-incidente" required rows="3" placeholder="Describe brevemente la situación..." class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-semibold"></textarea>
+                    <textarea id="desc-incidente" required rows="3" placeholder="Describe brevemente la situación..." class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500"></textarea>
                 </div>
                 <div class="flex space-x-3">
-                    <button type="button" onclick="cerrarModalIncidente()" class="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs">Cancelar</button>
-                    <button type="submit" class="w-1/2 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs shadow">Enviar Alerta</button>
+                    <button type="button" onclick="cerrarModalIncidente()" class="w-1/2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition">Cancelar</button>
+                    <button type="submit" id="btn-enviar-incidente" class="w-1/2 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs shadow transition">Enviar Alerta</button>
                 </div>
             </form>
         </div>
@@ -214,6 +220,8 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         let html5QrCode = null;
         
         const busId = <?php echo $busId; ?>;
+        const rutaId = <?php echo $rutaId; ?>;
+        const conductorId = <?php echo $conductorId; ?>;
         const paradasBD = <?php echo json_encode($paradas); ?>;
 
         let ultimaLat = null;
@@ -237,31 +245,26 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 
         initMap();
 
-        // Evitar que la pantalla se apague (Screen Wake Lock)
         async function solicitarWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Screen Wake Lock activo');
                 }
             } catch (err) {
                 console.warn(`Wake Lock no disponible: ${err.message}`);
             }
         }
 
-        // FUNCIONES DE AUTO-INICIO AUTOMÁTICO AL CARGAR LA PÁGINA
         function autoIniciarTransmision() {
             solicitarWakeLock();
 
             if ("geolocation" in navigator) {
-                // 1. Obtener primera coordenada de inmediato para actualizar BD rápido
                 navigator.geolocation.getCurrentPosition(
                     pos => procesarNuevaUbicacion(pos),
                     err => console.error("Error al obtener posición inicial:", err.message),
                     { enableHighAccuracy: true, timeout: 10000 }
                 );
 
-                // 2. Mantener escucha continua en tiempo real
                 watchId = navigator.geolocation.watchPosition(
                     pos => procesarNuevaUbicacion(pos),
                     err => console.error("Error en rastreo continuo:", err.message),
@@ -301,17 +304,12 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
             }
             map.setView(posArray, 16);
 
-            // Enviar posición a la base de datos
             enviarUbicacionBD(lat, lng, velocidadKmH);
-            
-            // Verificar cercanía a paradas
             verificarProximidadParadas(lat, lng);
         }
 
-        // EJECUTAR AUTOINICIO TAN PRONTO EL DOCUMENTO ESTÉ LISTO
         window.addEventListener('DOMContentLoaded', autoIniciarTransmision);
 
-        // Re-solicitar Wake Lock si la pestaña vuelve a ser visible
         document.addEventListener('visibilitychange', async () => {
             if (document.visibilityState === 'visible') {
                 await solicitarWakeLock();
@@ -327,10 +325,8 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 
             fetch('../api/ubicacion.php', { method: 'POST', body: formData })
             .then(res => res.json())
-            .then(data => {
-                console.log("GPS actualizado automáticamente:", data);
-            })
-            .catch(err => console.error("Error conectando con API:", err));
+            .then(data => console.log("GPS actualizado:", data))
+            .catch(err => console.error("Error conectando con API GPS:", err));
         }
 
         function verificarProximidadParadas(busLat, busLng) {
@@ -409,7 +405,7 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                     const data = JSON.parse(text);
                     if(data.status === 'success') {
                         resDiv.className = "p-3 rounded-xl text-xs font-bold text-center bg-emerald-100 text-emerald-800 border border-emerald-300";
-                        resDiv.innerText = "✓ " + data.message + ": " + data.estudiante;
+                        resDiv.innerText = "✓ " + data.message + ": " + (data.estudiante || '');
                     } else {
                         resDiv.className = "p-3 rounded-xl text-xs font-bold text-center bg-red-100 text-red-800 border border-red-300";
                         resDiv.innerText = "✕ " + data.message;
@@ -429,30 +425,54 @@ $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
         function abrirModalIncidente() { document.getElementById('modal-incidente').classList.remove('hidden'); }
         function cerrarModalIncidente() { document.getElementById('modal-incidente').classList.add('hidden'); }
 
+        // FUNCION CORREGIDA PARA ENVIAR EL INCIDENTE CON TODOS LOS PARÁMETROS
         function guardarIncidente(e) {
             e.preventDefault();
+            
+            const btnEnviar = document.getElementById('btn-enviar-incidente');
             const tipo = document.getElementById('tipo-incidente').value;
-            const desc = document.getElementById('desc-incidente').value;
+            const desc = document.getElementById('desc-incidente').value.trim();
+
+            if (!desc) {
+                alert("Por favor escribe una breve descripción del incidente.");
+                return;
+            }
+
+            btnEnviar.disabled = true;
+            btnEnviar.innerText = "Enviando...";
 
             const formData = new FormData();
             formData.append('tipo', tipo);
             formData.append('descripcion', desc);
+            formData.append('bus_id', busId);
+            formData.append('ruta_id', rutaId);
+            formData.append('conductor_id', conductorId);
 
             fetch('../api/reportar_incidente.php', { method: 'POST', body: formData })
             .then(res => res.text())
             .then(text => {
+                btnEnviar.disabled = false;
+                btnEnviar.innerText = "Enviar Alerta";
+
                 try {
                     const data = JSON.parse(text);
-                    if(data.status === 'success') {
-                        alert("Incidente reportado correctamente a los estudiantes y administración.");
+                    if (data.status === 'success' || data.success) {
+                        alert("¡Incidente reportado con éxito! Se notificó a administración y estudiantes.");
                         cerrarModalIncidente();
                         document.getElementById('desc-incidente').value = '';
                     } else {
-                        alert("Error: " + data.message);
+                        alert("Error al reportar: " + (data.message || data.error || "Respuesta desconocida"));
                     }
-                } catch(e) {
-                    console.error("Error al reportar:", text);
+                } catch (err) {
+                    console.error("Respuesta del servidor no válida (RAW):", text);
+                    alert("Aviso: " + (text.includes('Sin conexion') ? "Sin conexión a la base de datos" : text));
                 }
+            })
+            .catch(err => {
+                btnEnviar.disabled = false;
+                btnEnviar.innerText = "Enviar Alerta";
+                console.error("Error en la solicitud HTTP:", err);
+                alert("Error de conexión al enviar el reporte. Verifica tu red.");
             });
         }
     </script>
