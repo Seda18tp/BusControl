@@ -1,48 +1,43 @@
 <?php
-session_start();
-header('Content-Type: application/json; charset=utf-8');
-
-if (file_exists('../db/conexion.php')) {
+header('Content-Type: application/json');
 require_once __DIR__ . '/../db/conexion.php';
+
+if (!$pdo) {
+    echo json_encode(['status' => 'error', 'message' => 'Sin conexión a la base de datos']);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $tipo = trim($_POST['tipo'] ?? '');
+    $descripcion = trim($_POST['descripcion'] ?? '');
+    $busId = $_POST['bus_id'] ?? null;
+    $rutaId = $_POST['ruta_id'] ?? null;
+    $conductorId = $_POST['conductor_id'] ?? null;
+
+    if (!empty($tipo) && !empty($descripcion)) {
+        try {
+            // Insertar el incidente registrando el estado activo
+            $stmt = $pdo->prepare('INSERT INTO incidentes (tipo, descripcion, "busId", "rutaId", "conductorId", estado, fecha) 
+                                   VALUES (?, ?, ?, ?, ?, \'activo\', NOW())');
+            $stmt->execute([$tipo, $descripcion, $busId, $rutaId, $conductorId]);
+
+            echo json_encode(['status' => 'success', 'message' => 'Incidente registrado correctamente']);
+        } catch (PDOException $e) {
+            // Respaldo por si las columnas en Supabase no llevan camelCase
+            try {
+                $stmt = $pdo->prepare('INSERT INTO incidentes (tipo, descripcion, busid, rutaid, conductorid, estado, fecha) 
+                                       VALUES (?, ?, ?, ?, ?, \'activo\', NOW())');
+                $stmt->execute([$tipo, $descripcion, $busId, $rutaId, $conductorId]);
+
+                echo json_encode(['status' => 'success', 'message' => 'Incidente registrado correctamente']);
+            } catch (PDOException $ex) {
+                echo json_encode(['status' => 'error', 'message' => 'Error al guardar en BD: ' . $ex->getMessage()]);
+            }
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Todos los campos son requeridos']);
+    }
 } else {
-    echo json_encode(['status' => 'error', 'message' => 'Sin conexion BD']);
-    exit;
+    echo json_encode(['status' => 'error', 'message' => 'Método no permitido']);
 }
-
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'conductor') {
-    echo json_encode(['status' => 'error', 'message' => 'Acceso no autorizado']);
-    exit;
-}
-
-$conductorId = $_SESSION['usuario_id'];
-$tipo = $_POST['tipo'] ?? 'otro';
-$desc = trim($_POST['descripcion'] ?? '');
-
-if (empty($desc)) {
-    echo json_encode(['status' => 'error', 'message' => 'Ingresa una descripción']);
-    exit;
-}
-
-// Buscar o crear un viaje activo para asociar el incidente
-$stmtViaje = $pdo->prepare('SELECT id FROM viajes WHERE "conductorId" = ? AND estado = 'activo' ORDER BY id DESC LIMIT 1');
-$stmtViaje->execute([$conductorId]);
-$viaje = $stmtViaje->fetch(PDO::FETCH_ASSOC);
-
-if (!$viaje) {
-    // Si no hay viaje abierto, insertar uno activo por defecto
-    $stmtNuevoViaje = $pdo->prepare('INSERT INTO viajes ("busId", "rutaId", "conductorId", estado) VALUES (1, 1, ?, 'activo')');
-    $stmtNuevoViaje->execute([$conductorId]);
-    $viajeId = $pdo->lastInsertId();
-} else {
-    $viajeId = $viaje['id'];
-}
-
-// Insertar en la tabla incidentes
-$stmtInsert = $pdo->prepare('INSERT INTO incidentes ("viajeId", "conductorId", descripcion, tipo, "fechaReporte") VALUES (?, ?, ?, ?, NOW())');
-$stmtInsert->execute([$viajeId, $conductorId, $desc, $tipo]);
-
-echo json_encode([
-    'status' => 'success',
-    'message' => 'Incidente reportado exitosamente'
-]);
 ?>
