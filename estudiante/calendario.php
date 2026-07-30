@@ -4,10 +4,10 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') { head
 
 require_once __DIR__ . '/../db/conexion.php';
 
-$rutas = $pdo->query("SELECT r.nombre, r.horarioTurno, p.nombre as parada, p.horaEstimada 
+$rutas = $pdo->query('SELECT r.nombre, r."horarioTurno", p.nombre as parada, p."horaEstimada" 
                       FROM rutas r 
-                      JOIN paradas p ON r.id = p.rutaId 
-                      ORDER BY r.nombre, p.orden")->fetchAll(PDO::FETCH_ASSOC);
+                      JOIN paradas p ON r.id = p."rutaId"
+                      ORDER BY r.nombre, p.orden')->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="es">

@@ -4,7 +4,7 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') { head
 require_once __DIR__ . '/../db/conexion.php';
 
 $usuario_id = $_SESSION['usuario_id'];
-$stmt = $pdo->prepare("SELECT * FROM pagos WHERE usuarioId = ? ORDER BY fechaPago DESC");
+$stmt = $pdo->prepare('SELECT * FROM pagos WHERE "usuarioId" = ? ORDER BY "fechaPago" DESC');
 $stmt->execute([$usuario_id]);
 $pagos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>

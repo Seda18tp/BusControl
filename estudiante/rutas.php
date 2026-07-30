@@ -12,7 +12,7 @@ $nombre_usuario = $_SESSION['nombre'];
 $iniciales = strtoupper(substr($nombre_usuario, 0, 2));
 
 // Consultar todas las rutas y sus paradas
-$stmtRutas = $pdo->query("SELECT r.id, r.nombre, r.horarioTurno FROM rutas r ORDER BY r.id ASC");
+$stmtRutas = $pdo->query('SELECT r.id, r.nombre, r."horarioTurno" FROM rutas r ORDER BY r.id ASC');
 $rutas = $stmtRutas->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -74,7 +74,7 @@ $rutas = $stmtRutas->fetchAll(PDO::FETCH_ASSOC);
                 <?php foreach ($rutas as $ruta): ?>
                     <?php
                     // Cargar paradas de la ruta actual
-                    $stmtParadas = $pdo->prepare("SELECT nombre, orden, horaEstimada FROM paradas WHERE rutaId = ? ORDER BY orden ASC");
+                    $stmtParadas = $pdo->prepare('SELECT nombre, orden, "horaEstimada" FROM paradas WHERE "rutaId" = ? ORDER BY orden ASC');
                     $stmtParadas->execute([$ruta['id']]);
                     $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
                     ?>

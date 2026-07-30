@@ -4,10 +4,10 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') { head
 require_once __DIR__ . '/../db/conexion.php';
 
 // Consultar avisos del sistema e incidentes reportados por conductores
-$stmt = $pdo->query("SELECT i.descripcion, i.tipo, i.fechaReporte, u.nombre as conductor 
+$stmt = $pdo->query('SELECT i.descripcion, i.tipo, i."fechaReporte", u.nombre as conductor 
                      FROM incidentes i 
-                     JOIN usuarios u ON i.conductorId = u.id 
-                     ORDER BY i.fechaReporte DESC LIMIT 10");
+                     JOIN usuarios u ON i."conductorId" = u.id 
+                     ORDER BY i.fechaReporte DESC LIMIT 10');
 $alertas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>

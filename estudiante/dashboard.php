@@ -65,7 +65,7 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
         <!-- Sidebar Izquierdo -->
         <aside class="w-20 bg-white border-r border-slate-200 flex flex-col justify-between items-center py-6 relative z-30">
             <nav class="flex flex-col space-y-5 w-full items-center">
-                <a href="index.php" title="Inicio" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm">
+                <a href="dashboard.php" title="Inicio" class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shadow-sm">
                     <i class="fa-solid fa-house"></i>
                 </a>
                 <a href="pagos.php" title="Mis Pagos" class="w-12 h-12 rounded-2xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex items-center justify-center text-xl transition">
