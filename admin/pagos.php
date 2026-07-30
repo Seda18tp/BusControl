@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmtEstudiantes = $pdo->query('SELECT u.id, u.nombre, u.email, u."codigoEstudiante", 
                                 (SELECT estado FROM pagos WHERE "usuarioId" = u.id ORDER BY id DESC LIMIT 1) as "estadoPago",
                                 (SELECT "validoHasta" FROM pagos WHERE "usuarioId" = u.id ORDER BY id DESC LIMIT 1) as "validoHasta"
-                                FROM usuarios u WHERE u."rolId" = 3 OR u.rolid = 3');
+                                FROM usuarios u WHERE u."rolId" = 3');
 $estudiantes = $stmtEstudiantes->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
