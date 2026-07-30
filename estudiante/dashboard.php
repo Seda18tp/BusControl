@@ -1,6 +1,8 @@
 <?php
 session_start();
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') {
+
+// Verificar que el usuario tenga sesión activa y sea estudiante
+if (!isset($_SESSION['usuario_id']) || (strtolower($_SESSION['rol'] ?? '') !== 'estudiante' && ($_SESSION['rolid'] ?? $_SESSION['rolId'] ?? 0) != 3)) {
     header("Location: ../index.php");
     exit;
 }
@@ -8,19 +10,20 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'estudiante') {
 require_once __DIR__ . '/../db/conexion.php';
 
 $usuario_id = $_SESSION['usuario_id'];
-$nombre_usuario = $_SESSION['nombre'];
+$nombre_usuario = $_SESSION['nombre'] ?? 'Estudiante';
 $iniciales = strtoupper(substr($nombre_usuario, 0, 2));
 
-// Estado de Pago
-$stmtPago = $pdo->prepare("SELECT estado, validoHasta FROM pagos WHERE usuarioId = ? ORDER BY id DESC LIMIT 1");
-$stmtPago->execute([$usuario_id]);
+// Estado de Pago (Soporte Case-Safe para PostgreSQL)
+$stmtPago = $pdo->prepare('SELECT estado, "validoHasta" as "validoHasta" FROM pagos WHERE "usuarioId" = ? OR usuarioid = ? ORDER BY id DESC LIMIT 1');
+$stmtPago->execute([$usuario_id, $usuario_id]);
 $pago = $stmtPago->fetch(PDO::FETCH_ASSOC);
 
 $estadoPago = $pago['estado'] ?? 'vencido';
-$validoHasta = $pago['validoHasta'] ?? null;
+$validoHasta = $pago['validoHasta'] ?? $pago['validohasta'] ?? null;
 
 // Cargar paradas activas con latitud y longitud
-$stmtParadas = $pdo->query("SELECT id, nombre, orden, horaEstimada, latitud, longitud FROM paradas WHERE rutaId = 1 ORDER BY orden ASC");
+$stmtParadas = $pdo->prepare('SELECT id, nombre, orden, "horaEstimada" as "horaEstimada", latitud, longitud FROM paradas WHERE "rutaId" = 1 OR rutaid = 1 ORDER BY orden ASC');
+$stmtParadas->execute();
 $paradas = $stmtParadas->fetchAll(PDO::FETCH_ASSOC);
 
 // Token QR Diario
@@ -53,7 +56,7 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
             <span class="font-black text-slate-800 tracking-tight text-xl">BUSCONTROL</span>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="text-xs font-bold text-slate-600">Hola, <?php echo htmlspecialchars($nombre_usuario); ?></span>
+            <span class="text-xs font-bold text-slate-600">Hola, <strong><?php echo htmlspecialchars($nombre_usuario); ?></strong></span>
         </div>
     </header>
 
@@ -119,7 +122,7 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
                             <!-- Contenedor del Mapa -->
                             <div id="mapa"></div>
 
-                            <!-- Cartel Flotante del Mapa (Esquina Superior Derecha) -->
+                            <!-- Cartel Flotante del Mapa -->
                             <div class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg border border-slate-100 z-[1000] flex items-center space-x-3 min-w-[210px]">
                                 <div id="cartel-estado-bus" class="bg-emerald-500 text-white px-3 py-2 rounded-xl text-xs font-bold text-center transition-all duration-300">
                                     <span id="txt-estado-sub">En Movimiento</span>
@@ -134,58 +137,59 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
                         </div>
                     </div>
 
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                            <div id="icon-pago" class="w-12 h-12 rounded-2xl <?php echo $estadoPago === 'al_dia' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'; ?> flex items-center justify-center text-xl shrink-0">
-                                <i class="fa-solid <?php echo $estadoPago === 'al_dia' ? 'fa-credit-card' : 'fa-triangle-exclamation'; ?>"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">PAGO MENSUAL</p>
-                                <p class="text-lg font-black <?php echo $estadoPago === 'al_dia' ? 'text-emerald-600' : 'text-red-600'; ?>">
-                                    <?php echo $estadoPago === 'al_dia' ? 'AL DÍA' : 'EXPIRADO'; ?>
-                                </p>
-                                <p class="text-xs text-slate-400 font-medium">
-                                    <?php echo $estadoPago === 'al_dia' ? '(Válido hasta ' . date('d/m/Y', strtotime($validoHasta)) . ')' : '(Pago requerido para abordar)'; ?>
-                                </p>
-                            </div>
+                    <!-- Estado del Pago Mensual -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                        <div id="icon-pago" class="w-12 h-12 rounded-2xl <?php echo $estadoPago === 'al_dia' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'; ?> flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid <?php echo $estadoPago === 'al_dia' ? 'fa-credit-card' : 'fa-triangle-exclamation'; ?>"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">PAGO MENSUAL</p>
+                            <p class="text-lg font-black <?php echo $estadoPago === 'al_dia' ? 'text-emerald-600' : 'text-red-600'; ?>">
+                                <?php echo $estadoPago === 'al_dia' ? 'AL DÍA' : 'EXPIRADO'; ?>
+                            </p>
+                            <p class="text-xs text-slate-400 font-medium">
+                                <?php echo ($estadoPago === 'al_dia' && $validoHasta) ? '(Válido hasta ' . date('d/m/Y', strtotime($validoHasta)) . ')' : '(Pago requerido para abordar)'; ?>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Columna Derecha: Código QR para Abordaje Dinámico y Único -->
-<div class="lg:col-span-1">
-    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center flex flex-col items-center justify-between h-full space-y-6">
-        <div>
-            <h3 class="text-lg font-black text-slate-800">Código QR para Abordaje</h3>
-            <p class="text-xs text-slate-400 mt-1">Generado de forma segura</p>
-        </div>
+                <!-- Columna Derecha: Código QR para Abordaje -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center flex flex-col items-center justify-between h-full space-y-6">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-800">Código QR para Abordaje</h3>
+                            <p class="text-xs text-slate-400 mt-1">Generado de forma segura</p>
+                        </div>
 
-        <div class="relative p-6 bg-white border border-slate-200 rounded-3xl shadow-sm my-auto w-full flex items-center justify-center min-h-[220px]">
-            <!-- Esquinas decorativas de escáner -->
-            <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-slate-800 rounded-tl"></div>
-            <div class="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-slate-800 rounded-tr"></div>
-            <div class="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-slate-800 rounded-bl"></div>
-            <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-slate-800 rounded-br"></div>
+                        <div class="relative p-6 bg-white border border-slate-200 rounded-3xl shadow-sm my-auto w-full flex items-center justify-center min-h-[220px]">
+                            <!-- Esquinas decorativas de escáner -->
+                            <div class="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-slate-800 rounded-tl"></div>
+                            <div class="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-slate-800 rounded-tr"></div>
+                            <div class="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-slate-800 rounded-bl"></div>
+                            <div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-slate-800 rounded-br"></div>
 
-            <!-- Contenedor dinámico donde se insertará el QR registrado en BD -->
-            <div id="contenedor-qr-estudiante">
-                <div class="animate-pulse flex flex-col items-center space-y-2">
-                    <div class="w-36 h-36 bg-slate-200 rounded-xl"></div>
-                    <span class="text-xs font-bold text-slate-400">Generando pase único...</span>
+                            <!-- Contenedor dinámico de QR -->
+                            <div id="contenedor-qr-estudiante">
+                                <div class="animate-pulse flex flex-col items-center space-y-2">
+                                    <div class="w-36 h-36 bg-slate-200 rounded-xl"></div>
+                                    <span class="text-xs font-bold text-slate-400">Generando pase único...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <?php if ($estadoPago === 'al_dia'): ?>
+                                <span class="text-sm font-bold text-slate-700">Válido para hoy</span>
+                                <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
+                            <?php else: ?>
+                                <span class="text-sm font-bold text-red-600">Inhabilitado</span>
+                                <i class="fa-solid fa-circle-xmark text-red-500 text-lg"></i>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="flex items-center space-x-2">
-            <?php if ($estadoPago === 'al_dia'): ?>
-                <span class="text-sm font-bold text-slate-700">Válido para hoy</span>
-                <i class="fa-solid fa-circle-check text-emerald-500 text-lg"></i>
-            <?php else: ?>
-                <span class="text-sm font-bold text-red-600">Inhabilitado</span>
-                <i class="fa-solid fa-circle-xmark text-red-500 text-lg"></i>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
             </div>
         </main>
     </div>
@@ -209,45 +213,43 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
             iconAnchor: [19, 19]
         });
 
-        // Obtener token dinámico guardado en BD desde api/generar_qr.php
-function obtenerQRDinamico() {
-    fetch('../api/generar_qr.php')
-        .then(res => res.json())
-        .then(data => {
-            const container = document.getElementById('contenedor-qr-estudiante');
-            if (!container) return;
+        function obtenerQRDinamico() {
+            fetch('../api/generar_qr.php')
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('contenedor-qr-estudiante');
+                    if (!container) return;
 
-            if (data.status === 'success') {
-                container.innerHTML = `
-                    <div class="space-y-2">
-                        <img id="img-qr" src="${data.qr_url}" alt="QR Abordaje" class="w-44 h-44 mx-auto">
-                        <span class="inline-block bg-blue-50 text-blue-700 text-[11px] font-extrabold px-3 py-1 rounded-full border border-blue-200">
-                            ${data.mensaje || 'Pase Diarios'}
-                        </span>
-                    </div>`;
-            } else if (data.status === 'limite_alcanzado') {
-                container.innerHTML = `
-                    <div class="w-44 h-44 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-amber-700">
-                        <i class="fa-solid fa-circle-check text-3xl text-amber-500"></i>
-                        <span class="text-[11px] font-extrabold text-center">Viajes del día completados</span>
-                        <span class="text-[9px] text-amber-600 text-center">Consumiste tus 2 pases (Ida y Vuelta).</span>
-                    </div>`;
-            } else {
-                container.innerHTML = `
-                    <div class="w-44 h-44 bg-slate-100 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-slate-400">
-                        <i class="fa-solid fa-lock text-3xl text-red-400"></i>
-                        <span class="text-[11px] font-bold text-slate-500">Pase Bloqueado</span>
-                        <span class="text-[9px] text-slate-400 text-center">${data.message || 'Pago requerido'}</span>
-                    </div>`;
-            }
-        })
-        .catch(err => console.error("Error al obtener QR:", err));
-}
+                    if (data.status === 'success') {
+                        container.innerHTML = `
+                            <div class="space-y-2">
+                                <img id="img-qr" src="${data.qr_url}" alt="QR Abordaje" class="w-44 h-44 mx-auto">
+                                <span class="inline-block bg-blue-50 text-blue-700 text-[11px] font-extrabold px-3 py-1 rounded-full border border-blue-200">
+                                    ${data.mensaje || 'Pase Diario'}
+                                </span>
+                            </div>`;
+                    } else if (data.status === 'limite_alcanzado') {
+                        container.innerHTML = `
+                            <div class="w-44 h-44 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-amber-700">
+                                <i class="fa-solid fa-circle-check text-3xl text-amber-500"></i>
+                                <span class="text-[11px] font-extrabold text-center">Viajes del día completados</span>
+                                <span class="text-[9px] text-amber-600 text-center">Consumiste tus 2 pases (Ida y Vuelta).</span>
+                            </div>`;
+                    } else {
+                        container.innerHTML = `
+                            <div class="w-44 h-44 bg-slate-100 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-slate-400">
+                                <i class="fa-solid fa-lock text-3xl text-red-400"></i>
+                                <span class="text-[11px] font-bold text-slate-500">Pase Bloqueado</span>
+                                <span class="text-[9px] text-slate-400 text-center">${data.message || 'Pago requerido'}</span>
+                            </div>`;
+                    }
+                })
+                .catch(err => console.error("Error al obtener QR:", err));
+        }
 
-// Cargar el QR único cuando se abra la página
-window.addEventListener('DOMContentLoaded', () => {
-    obtenerQRDinamico();
-});
+        window.addEventListener('DOMContentLoaded', () => {
+            obtenerQRDinamico();
+        });
 
         function initMap() {
             map = L.map('mapa', { zoomControl: false }).setView([4.6097, -74.0817], 15);
@@ -261,9 +263,12 @@ window.addEventListener('DOMContentLoaded', () => {
             fetch('../api/ubicacion.php')
                 .then(res => res.json())
                 .then(data => {
-                    if (data.latitud && data.longitud) {
-                        const lat = parseFloat(data.latitud);
-                        const lng = parseFloat(data.longitud);
+                    const rawLat = data.latitud ?? data.lat;
+                    const rawLng = data.longitud ?? data.lng;
+
+                    if (rawLat !== null && rawLng !== null && rawLat !== undefined && rawLng !== undefined) {
+                        const lat = parseFloat(rawLat);
+                        const lng = parseFloat(rawLng);
                         const pos = [lat, lng];
 
                         if (data.placa) {
@@ -282,10 +287,8 @@ window.addEventListener('DOMContentLoaded', () => {
                             primeraCarga = false;
                         }
 
-                        // 1. EVALUAR LLEGADA A PARADA (Prioridad 1)
                         const estaEnParada = verificarLlegadaEstudiante(lat, lng);
 
-                        // 2. EVALUAR MOVIMIENTO / DETENIDO SOLO SI NO ESTÁ EN PARADA
                         if (!estaEnParada) {
                             let estaEnMovimiento = false;
 
@@ -305,7 +308,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         anteriorLngEstudiante = lng;
                     }
                 })
-                .catch(err => console.error("Error GPS:", err));
+                .catch(err => console.error("Error GPS Estudiante:", err));
         }
 
         function verificarLlegadaEstudiante(busLat, busLng) {
@@ -322,7 +325,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     const dist = calcularDistanciaMetros(busLat, busLng, pLat, pLng);
 
-                    if (dist < 150) { // Menos de 150m de la parada
+                    if (dist < 150) {
                         paradaEncontrada = parada;
                         if (i + 1 < paradasBD.length) {
                             siguienteParada = paradasBD[i + 1];
