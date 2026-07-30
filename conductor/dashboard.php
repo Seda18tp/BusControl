@@ -15,7 +15,7 @@ $iniciales = strtoupper(substr($nombreConductor, 0, 2));
 $stmtBus = $pdo->prepare('SELECT b.id as "busId", b.placa, r.id as "rutaId", r.nombre as "nombreRuta" 
                          FROM buses b 
                          JOIN rutas r ON b."rutaId" = r.id OR b.rutaid = r.id
-                         WHERE b."conductorId" = ? OR b.conductorid = ? LIMIT 1');
+                         WHERE b."conductorId" = ? OR b."conductorid" = ? LIMIT 1');
 $stmtBus->execute([$conductorId, $conductorId]);
 $bus = $stmtBus->fetch(PDO::FETCH_ASSOC);
 
