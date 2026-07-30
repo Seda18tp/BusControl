@@ -11,8 +11,8 @@ $nombreAdmin = $_SESSION['nombre'];
 $iniciales = strtoupper(substr($nombreAdmin, 0, 2));
 
 // Consultar todas las rutas con su bus y conductor asignado
-$stmtRutas = $pdo->query('SELECT r.id as "rutaId", r.nombre as nombreRuta, r."horarioTurno", 
-                                 b.placa, u.nombre as nombreConductor, b.estado as estadoBus 
+$stmtRutas = $pdo->query('SELECT r.id as "rutaId", r.nombre as "nombreRuta", r."horarioTurno", 
+                                 b.placa, u.nombre as "nombreConductor", b.estado as "estadoBus" 
                           FROM rutas r 
                           LEFT JOIN buses b ON b."rutaId" = r.id 
                           LEFT JOIN usuarios u ON b."conductorId" = u.id 
