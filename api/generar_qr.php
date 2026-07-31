@@ -29,7 +29,7 @@ try {
     $stmtPago = $pdo->prepare('
         SELECT estado, "validoHasta" as "validoHasta" 
         FROM pagos 
-        WHERE ("usuarioId" = ? OR usuarioid = ?) 
+        WHERE ("usuarioId" = ?) 
         ORDER BY id DESC LIMIT 1
     ');
     $stmtPago->execute([$usuarioId, $usuarioId]);
@@ -52,7 +52,7 @@ try {
         $stmtAsistencias = $pdo->prepare('
             SELECT COUNT(*) 
             FROM asistencias 
-            WHERE ("estudianteId" = ? OR estudianteid = ? OR "usuarioId" = ? OR usuarioid = ?) 
+            WHERE ("estudianteId" = ? OR "usuarioId" = ?) 
               AND DATE("fechaAbordaje") = CURRENT_DATE
         ');
         $stmtAsistencias->execute([$usuarioId, $usuarioId, $usuarioId, $usuarioId]);
