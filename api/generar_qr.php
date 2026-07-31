@@ -32,7 +32,7 @@ try {
         WHERE ("usuarioId" = ?) 
         ORDER BY id DESC LIMIT 1
     ');
-    $stmtPago->execute([$usuarioId, $usuarioId]);
+    $stmtPago->execute([$usuarioId]);
     $pago = $stmtPago->fetch(PDO::FETCH_ASSOC);
 
     $estadoPago = strtolower(trim($pago['estado'] ?? 'vencido'));
@@ -55,7 +55,7 @@ try {
             WHERE ("estudianteId" = ? OR "usuarioId" = ?) 
               AND DATE("fechaAbordaje") = CURRENT_DATE
         ');
-        $stmtAsistencias->execute([$usuarioId, $usuarioId, $usuarioId, $usuarioId]);
+        $stmtAsistencias->execute([$usuarioId, $usuarioId]);
         $asistenciasHoy = intval($stmtAsistencias->fetchColumn() ?: 0);
     } catch (PDOException $ex) {
         $asistenciasHoy = 0;
