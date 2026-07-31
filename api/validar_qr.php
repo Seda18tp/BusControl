@@ -17,7 +17,7 @@ if (empty($token)) {
 }
 
 try {
-    // 1. BUSCAR EL TOKEN EN TU TABLA
+    // 1. BUSCAR EL TOKEN EN LA TABLA tokens_qr
     $stmtToken = $pdo->prepare('
         SELECT t.id as "tokenId", t."estudianteId", t.usado, u.nombre 
         FROM "tokens_qr" t 
@@ -37,11 +37,11 @@ try {
         exit;
     }
 
-    // 2. VERIFICAR ASISTENCIAS DEL DÍA
+    // 2. VERIFICAR ASISTENCIAS DEL DÍA (Uso estricto de "estudianteId" y "fechaAbordaje")
     $stmtConteo = $pdo->prepare('
         SELECT COUNT(*) 
         FROM asistencias 
-        WHERE ("estudianteId" = ?) 
+        WHERE "estudianteId" = ? 
           AND DATE("fechaAbordaje") = CURRENT_DATE
     ');
     $stmtConteo->execute([$usuarioId]);
@@ -52,22 +52,14 @@ try {
         exit;
     }
 
-    // 3. REGISTRAR ASISTENCIA Y QUEMAR EL TOKEN
-    try {
-        $stmtInsert = $pdo->prepare('
-            INSERT INTO asistencias ("estudianteId", "fechaAbordaje", estado) 
-            VALUES (?, NOW(), \'confirmado\')
-        ');
-        $stmtInsert->execute([$usuarioId]);
-    } catch (PDOException $ex) {
-        $stmtInsert = $pdo->prepare('
-            INSERT INTO asistencias (estudianteid, fechaabordaje, estado) 
-            VALUES (?, NOW(), \'confirmado\')
-        ');
-        $stmtInsert->execute([$usuarioId]);
-    }
+    // 3. REGISTRAR ASISTENCIA (Solo con las columnas exactas de Supabase: "estudianteId" y "fechaAbordaje")
+    $stmtInsert = $pdo->prepare('
+        INSERT INTO asistencias ("estudianteId", "fechaAbordaje") 
+        VALUES (?, NOW())
+    ');
+    $stmtInsert->execute([$usuarioId]);
 
-    // Marcar en tokens_qr que fue usado
+    // 4. MARCAR TOKEN COMO USADO
     if ($tokenId) {
         $stmtUpdate = $pdo->prepare('UPDATE "tokens_qr" SET usado = 1 WHERE id = ?');
         $stmtUpdate->execute([$tokenId]);
