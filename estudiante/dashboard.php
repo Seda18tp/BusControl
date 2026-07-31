@@ -271,39 +271,41 @@ $tokenQR = hash('sha256', $usuario_id . $fechaHoy . $secretoServidor);
         }
 
         function obtenerQRDinamico() {
-            fetch('../api/generar_qr.php')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('contenedor-qr-estudiante');
-                    if (!container) return;
+    // Pasar usuario_id dinámicamente como respaldo para Vercel
+    const usuarioId = <?php echo json_encode($usuario_id); ?>;
 
-                    if (data.status === 'success') {
-                        container.innerHTML = `
-                            <div class="space-y-2">
-                                <img id="img-qr" src="${data.qr_url}" alt="QR Abordaje" class="w-44 h-44 mx-auto">
-                                <span class="inline-block bg-blue-50 text-blue-700 text-[11px] font-extrabold px-3 py-1 rounded-full border border-blue-200">
-                                    ${data.mensaje || 'Pase Diario'}
-                                </span>
-                            </div>`;
-                    } else if (data.status === 'limite_alcanzado') {
-                        container.innerHTML = `
-                            <div class="w-44 h-44 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-amber-700">
-                                <i class="fa-solid fa-circle-check text-3xl text-amber-500"></i>
-                                <span class="text-[11px] font-extrabold text-center">Viajes del día completados</span>
-                                <span class="text-[9px] text-amber-600 text-center">Consumiste tus 2 pases (Ida y Vuelta).</span>
-                            </div>`;
-                    } else {
-                        container.innerHTML = `
-                            <div class="w-44 h-44 bg-slate-100 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-slate-400">
-                                <i class="fa-solid fa-lock text-3xl text-red-400"></i>
-                                <span class="text-[11px] font-bold text-slate-500">Pase Bloqueado</span>
-                                <span class="text-[9px] text-slate-400 text-center">${data.message || 'Pago requerido'}</span>
-                            </div>`;
-                    }
-                })
-                .catch(err => console.error("Error al obtener QR:", err));
-        }
+    fetch(`../api/generar_qr.php?usuario_id=${usuarioId}`)
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('contenedor-qr-estudiante');
+            if (!container) return;
 
+            if (data.status === 'success') {
+                container.innerHTML = `
+                    <div class="space-y-2">
+                        <img id="img-qr" src="${data.qr_url}" alt="QR Abordaje" class="w-44 h-44 mx-auto">
+                        <span class="inline-block bg-blue-50 text-blue-700 text-[11px] font-extrabold px-3 py-1 rounded-full border border-blue-200">
+                            ${data.mensaje || 'Pase Diario'}
+                        </span>
+                    </div>`;
+            } else if (data.status === 'limite_alcanzado') {
+                container.innerHTML = `
+                    <div class="w-44 h-44 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-amber-700">
+                        <i class="fa-solid fa-circle-check text-3xl text-amber-500"></i>
+                        <span class="text-[11px] font-extrabold text-center">Viajes del día completados</span>
+                        <span class="text-[9px] text-amber-600 text-center">Consumiste tus 2 pases (Ida y Vuelta).</span>
+                    </div>`;
+            } else {
+                container.innerHTML = `
+                    <div class="w-44 h-44 bg-slate-100 rounded-2xl flex flex-col items-center justify-center space-y-2 p-4 text-slate-400">
+                        <i class="fa-solid fa-lock text-3xl text-red-400"></i>
+                        <span class="text-[11px] font-bold text-slate-500">Pase Bloqueado</span>
+                        <span class="text-[9px] text-slate-400 text-center">${data.message || 'Pago requerido'}</span>
+                    </div>`;
+            }
+        })
+        .catch(err => console.error("Error al obtener QR:", err));
+}
         window.addEventListener('DOMContentLoaded', () => {
             obtenerQRDinamico();
         });

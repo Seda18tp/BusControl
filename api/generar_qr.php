@@ -5,8 +5,8 @@ header('Access-Control-Allow-Origin: *');
 session_start();
 require_once __DIR__ . '/../db/conexion.php';
 
-// Verificar que haya sesión activa de estudiante
-$usuarioId = $_SESSION['usuario_id'] ?? $_SESSION['id'] ?? null;
+// Intentar leer de la sesión, o de la petición GET/POST como respaldo seguro
+$usuarioId = $_SESSION['usuario_id'] ?? $_SESSION['id'] ?? $_GET['usuario_id'] ?? $_POST['usuario_id'] ?? null;
 
 if (!$usuarioId) {
     echo json_encode([
@@ -25,75 +25,57 @@ if (!$pdo) {
 }
 
 try {
-    // 1. VERIFICAR ESTADO DE PAGO DEL ESTUDIANTE (Soporte Case-Safe)
+    // 1. VERIFICAR ESTADO DE PAGO DEL ESTUDIANTE
     $stmtPago = $pdo->prepare('
         SELECT estado, "validoHasta" as "validoHasta" 
         FROM pagos 
-        WHERE ("usuarioId" = ?) 
+        WHERE ("usuarioId" = ? OR usuarioid = ?) 
         ORDER BY id DESC LIMIT 1
     ');
-    $stmtPago->execute([$usuarioId]);
+    $stmtPago->execute([$usuarioId, $usuarioId]);
     $pago = $stmtPago->fetch(PDO::FETCH_ASSOC);
 
     $estadoPago = strtolower(trim($pago['estado'] ?? 'vencido'));
-
-    // Aceptar cualquier variación común de "al día"
     $estaAlDia = in_array($estadoPago, ['al_dia', 'al dia', 'aldia', 'pagado', 'activo', '1']);
 
     if (!$estaAlDia) {
         echo json_encode([
             'status' => 'bloqueado',
-            'message' => 'Pago mensual pendiente o vencido. Pago requerido para abordar.'
+            'message' => 'Pago mensual pendiente o vencido.'
         ]);
         exit;
     }
 
-    // 2. CONTAR CUÁNTOS PASES HA CONSUMIDO HOY EN ASISTENCIAS (Límite: 2 pases por día)
+    // 2. CONTAR PASES CONSUMIDOS HOY EN ASISTENCIAS
     $asistenciasHoy = 0;
     try {
         $stmtAsistencias = $pdo->prepare('
             SELECT COUNT(*) 
             FROM asistencias 
-            WHERE ("estudianteId" = ?  OR "usuarioId" = ?) 
+            WHERE ("estudianteId" = ? OR estudianteid = ? OR "usuarioId" = ? OR usuarioid = ?) 
               AND DATE("fechaAbordaje") = CURRENT_DATE
         ');
         $stmtAsistencias->execute([$usuarioId, $usuarioId, $usuarioId, $usuarioId]);
         $asistenciasHoy = intval($stmtAsistencias->fetchColumn() ?: 0);
     } catch (PDOException $ex) {
-        // En caso de que la tabla asistencias no exista aún o no tenga registros hoy
         $asistenciasHoy = 0;
     }
 
     if ($asistenciasHoy >= 2) {
         echo json_encode([
             'status' => 'limite_alcanzado',
-            'message' => 'Límite alcanzado',
-            'asistencias' => $asistenciasHoy
+            'message' => 'Viajes del día completados'
         ]);
         exit;
     }
 
-    // 3. GENERAR TOKEN ÚNICO DIARIO DE ABORDAJE
+    // 3. GENERAR TOKEN Y URL DE QR
     $fechaHoy = date('Y-m-d');
     $secretoServidor = "CONTROLBUS_SECRET_KEY_2026";
-    // El token incluye el ID del usuario, la fecha del día y un identificador del viaje (1 o 2)
     $viajeNumero = $asistenciasHoy + 1;
     $tokenRaw = "BUSCTRL-EST-" . $usuarioId . "-" . $fechaHoy . "-V" . $viajeNumero . "-" . $secretoServidor;
     $tokenQR = hash('sha256', $tokenRaw);
 
-    // Guardar o actualizar el token diario en la base de datos si existe tabla de tokens (Opcional)
-    try {
-        $stmtToken = $pdo->prepare('
-            INSERT INTO tokens_qr ("usuarioId", token, "fechaCreacion", usos) 
-            VALUES (?, ?, NOW(), ?) 
-            ON CONFLICT ("usuarioId") DO UPDATE SET token = EXCLUDED.token, "fechaCreacion" = NOW()
-        ');
-        $stmtToken->execute([$usuarioId, $tokenQR, $asistenciasHoy]);
-    } catch (PDOException $e) {
-        // Si no existe la tabla tokens_qr, continúa normalmente generando el código visual
-    }
-
-    // 4. CONSTRUIR URL DEL CÓDIGO QR VISUAL (Usando QuickChart API segura y rápida)
     $qrContenido = urlencode($tokenQR);
     $qrUrl = "https://quickchart.io/qr?text={$qrContenido}&size=200&margin=1";
 
@@ -103,14 +85,13 @@ try {
         'status' => 'success',
         'token' => $tokenQR,
         'qr_url' => $qrUrl,
-        'mensaje' => $textoPase,
-        'usos_restantes' => 2 - $asistenciasHoy
+        'mensaje' => $textoPase
     ]);
 
 } catch (PDOException $e) {
     echo json_encode([
         'status' => 'error',
-        'message' => 'Error de consulta en BD: ' . $e->getMessage()
+        'message' => 'Error en BD: ' . $e->getMessage()
     ]);
 }
 ?>
